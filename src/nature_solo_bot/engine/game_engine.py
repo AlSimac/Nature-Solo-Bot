@@ -61,11 +61,16 @@ class GameEngine:
         self.state.watering_hole_plant += self.state.plant_per_round
         # Getting a new species for each player
         self.add_new_species()
+
         # Starting by first player, each player draws 7 cards from the deck
-        for i in range(self.state.number_players):
+        for player_offset in range(self.state.number_players):
+            player_index = (
+                self.state.first_player_index + player_offset
+            ) % self.state.number_players
+
+            player = self.state.players[player_index]
+
             for _ in range(7):
-                player_index = (self.state.first_player_index + i) % self.state.number_players
-                player = self.state.players[player_index]
                 player.hand.append(self.draw_card())
 
     def add_new_species(self):
@@ -75,4 +80,5 @@ class GameEngine:
 
             if self.state.current_round == 1:
                 new_species.population = 3
+                
             player.species.append(new_species)
