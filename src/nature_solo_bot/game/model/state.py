@@ -3,6 +3,7 @@
 
 from enum import Enum
 
+from .solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.player import Player
 
@@ -22,8 +23,8 @@ class GameState:
         self.number_players: int = 2
         self.players: list[Player] = []
         self.active_player_index: int = 0
-        self.deck: list[Card] = []
-        self.discard: list[Card] | None = []
+        self.nature_deck: list[Card] = []
+        self.nature_discard: list[Card] | None = []
         self.turn_history: list = []
         self.food_card : Card | None = None
         self.plant_per_round: int = 0

@@ -1,6 +1,7 @@
 """Player model for a Nature-like board game."""
 
 
+from .solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.species import Species
 
@@ -15,12 +16,14 @@ class Player:
         self.score: int = 0
         self.species: list[Species] = []
         self.hand: list[Card] = []
+        self.solo_deck: list[SoloSpecies] = []
+        self.solo_discard: list[SoloSpecies] | None = []
         self.automaton: None = None
         self.winner: bool = False
         self.is_first_player: bool = False
         self.is_active: bool = False
         self.metadata: dict = {}
-        self.automaton: None = None
+        
 
     def init_two_players() -> list["Player"]:
         """Initialize two players for the game."""
