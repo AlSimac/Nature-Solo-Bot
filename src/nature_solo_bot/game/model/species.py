@@ -14,3 +14,4 @@ class Species:
         self.population: int = 1
         self.size: int = 1
         self.food: int = 0
+        self.is_hunter = False
