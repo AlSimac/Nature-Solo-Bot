@@ -3,7 +3,9 @@
 
 from .solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.species import Species
+from src.nature_solo_bot.game.model.trait_card import TraitCard
 
 
 class Player:
@@ -30,3 +32,71 @@ class Player:
         player1 = Player(name="Rani", player_id=1)
         player2 = Player(name="Radwin", player_id=2)
         return [player1, player2]
+
+    def play_trait_card(
+        self,
+        card: Card,
+        species: Species,
+        *,
+        max_traits: int,
+    ) -> bool:
+        """Move a card from this player's hand onto one of their species."""
+        if species not in self.species:
+            raise ValueError("Cannot attach a trait card to another player's species.")
+        if card not in self.hand:
+            raise ValueError("The trait card must be in this player's hand.")
+        if not species.add_trait_card(card, max_traits=max_traits):
+            return False
+
+        self.hand.remove(card)
+        return True
+
+    def replace_trait_card(
+        self,
+        species: Species,
+        old_card: TraitCard,
+        new_card: TraitCard,
+        nature_discard: list[Card],
+        hunter_deck: list[HunterCard],
+        *,
+        max_traits: int,
+    ) -> bool:
+        """Replace an attached card and return it to its proper supply."""
+        if species not in self.species:
+            raise ValueError("Cannot replace a trait on another player's species.")
+        if not species.replace_trait_card(old_card, new_card, max_traits=max_traits):
+            return False
+
+        self._return_trait_card(old_card, nature_discard, hunter_deck)
+        return True
+
+    @staticmethod
+    def _return_trait_card(
+        card: TraitCard,
+        nature_discard: list[Card],
+        hunter_deck: list[HunterCard],
+    ) -> None:
+        if isinstance(card, HunterCard):
+            hunter_deck.append(card)
+        elif isinstance(card, Card):
+            nature_discard.append(card)
+        else:
+            raise TypeError(f"Unsupported trait card type: {type(card).__name__}")
+
+    def return_extinct_species(
+        self,
+        species: Species,
+        hunter_deck: list[HunterCard],
+    ) -> bool:
+        """Remove an extinct species and return its trait cards to the hand."""
+        if species not in self.species:
+            return False
+
+        self.species.remove(species)
+        for card in species.trait_cards:
+            if isinstance(card, Card):
+                self.hand.append(card)
+            else:
+                self._return_trait_card(card, [], hunter_deck)
+        species.trait_cards.clear()
+        return True

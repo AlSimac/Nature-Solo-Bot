@@ -1,0 +1,37 @@
+Deck;Trait;Food value;Gear;Armadillo;Vulture;Leaf;Seedling;Cat;
+Nature;Clawed;1;;;;;1;;11
+Nature;Clawed;2;4;;;;;;
+Nature;Clawed;3;4;;;;;;
+Nature;Clawed;4;;;;;2;;
+Nature;Fast;1;;;;;;1;11
+Nature;Fast;2;4;;;;;;
+Nature;Fast;3;4;;;;;;
+Nature;Fast;4;;;;;;2;
+Nature;Horned;1;;;;1;;;11
+Nature;Horned;2;;4;;;;;
+Nature;Horned;3;;4;;;;;
+Nature;Horned;4;;;;2;;;
+Nature;Opportunistic;1;;;;;1;;11
+Nature;Opportunistic;2;;;4;;;;
+Nature;Opportunistic;3;;;4;;;;
+Nature;Opportunistic;4;;;;;2;;
+Nature;Plated;1;1;;;;;;11
+Nature;Plated;2;;4;;;;;
+Nature;Plated;3;;4;;;;;
+Nature;Plated;4;2;;;;;;
+Nature;Scavenging;1;;1;;;;;11
+Nature;Scavenging;2;;;4;;;;
+Nature;Scavenging;3;;;4;;;;
+Nature;Scavenging;4;;2;;;;;
+Nature;Social;1;;;1;;;;11
+Nature;Social;2;;;;4;;;
+Nature;Social;3;;;;4;;;
+Nature;Social;4;;;2;;;;
+Nature;Tusked;1;;;;;;1;11
+Nature;Tusked;2;;;;4;;;
+Nature;Tusked;3;;;;4;;;
+Nature;Tusked;4;;;;;;2;
+Nature;Avid Forager;1;;;;;1;;11
+Nature;Avid Forager;2;;;;;4;;
+Nature;Avid Forager;3;;;;;4;;
+Nature;Avid Forager;4;;;;;2;;

@@ -5,9 +5,10 @@ import random
 
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.player import Player
+from src.nature_solo_bot.game.rules.preparation import PreparationRules
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GamePhase, GameState
-from typing import TypeVar, Generic
+from typing import TypeVar
 
 T = TypeVar("T")
 
@@ -92,12 +93,19 @@ class GameEngine:
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(solo_card=solo_card, traits=[], round_created=self.state.current_round)
+            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
             
-            if solo_card.effect_id:
-                pass
-
             if self.state.current_round == 1:
                 new_species.population = 3
                 
             player.species.append(new_species)
+
+            if solo_card.effect_id:
+                PreparationRules.solo_species_effect_when_played(
+                    new_species,
+                    player,
+                    max_traits=self.state.max_traits,
+                    nature_discard=self.state.nature_discard,
+                    hunter_deck=self.state.hunter_deck,
+                    rng=self.rng,
+                )

@@ -1,11 +1,14 @@
-from .trait import Trait
+from .trait import EffectTiming, Trait, TraitEffect
 
-# ----- Nature Traits -----
 # Hunter trait
 HUNTER = Trait(
     name="Hunter",
     effect_id="hunter",
+    effects=(
+        TraitEffect(effect_id="set_hunter", timing=EffectTiming.ON_ATTACH),
+    ),
 )
+# ----- Nature Traits -----
 CLAWED = Trait(
     name="Clawed",
     effect_id="clawed",
