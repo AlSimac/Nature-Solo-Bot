@@ -1,4 +1,11 @@
+from enum import Enum
+
 from .symbol import Symbol
+
+
+class SoloEffect(str, Enum):
+    PREDATOR = "predator"
+    PROPAGATOR = "propagator"
 
 
 class SoloSpecies:
@@ -7,7 +14,7 @@ class SoloSpecies:
     def __init__(
         self,
         name: str = "Solo Species",
-        effect_id: str = "solo_species",
+        effect_id: SoloEffect = None,
         pink_symbols: list[Symbol] | None = None,
         pink_symbols_last_round: list[Symbol] | None = None,
         blue_symbols: list[Symbol] | None = None,
