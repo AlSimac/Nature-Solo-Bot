@@ -26,8 +26,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertNotIn(card, player.hand)
         self.assertIs(species.trait_cards[0], card)
 
-        hunter_deck = []
-        removed = player.return_extinct_species(species, hunter_deck)
+        removed = player.return_extinct_species(species)
 
         self.assertTrue(removed)
         self.assertNotIn(species, player.species)
@@ -51,7 +50,6 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             card,
             hunter_card,
             nature_discard,
-            hunter_deck,
             max_traits=3,
         )
 
@@ -61,18 +59,18 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertIs(nature_discard[0], card)
         self.assertTrue(species.is_hunter)
 
-    def test_extinction_returns_hunter_card_to_hunter_stack(self):
+    def test_extinction_removes_hunter_card_without_a_return_pile(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
         hunter_card = HunterCard()
         species.add_trait_card(hunter_card, max_traits=3)
         player.species.append(species)
-        hunter_deck = []
 
-        removed = player.return_extinct_species(species, hunter_deck)
+        removed = player.return_extinct_species(species)
 
         self.assertTrue(removed)
-        self.assertIs(hunter_deck[-1], hunter_card)
+        self.assertEqual(species.trait_cards, [])
+        self.assertFalse(species.is_hunter)
         self.assertEqual(player.hand, [])
 
     def test_effect_replaces_a_seeded_random_trait_card(self):
@@ -86,14 +84,11 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
 
         expected_replacement = random.Random(42).choice(cards)
         nature_discard = []
-        hunter_deck = []
-
         replaced = PreparationRules.add_hunter_card(
             species,
             player,
             max_traits=3,
             nature_discard=nature_discard,
-            hunter_deck=hunter_deck,
             rng=random.Random(42),
         )
 

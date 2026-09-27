@@ -57,7 +57,6 @@ class Player:
         old_card: TraitCard,
         new_card: TraitCard,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
         *,
         max_traits: int,
     ) -> bool:
@@ -67,17 +66,16 @@ class Player:
         if not species.replace_trait_card(old_card, new_card, max_traits=max_traits):
             return False
 
-        self._return_trait_card(old_card, nature_discard, hunter_deck)
+        self._return_trait_card(old_card, nature_discard)
         return True
 
     @staticmethod
     def _return_trait_card(
         card: TraitCard,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
     ) -> None:
         if isinstance(card, HunterCard):
-            hunter_deck.append(card)
+            return
         elif isinstance(card, Card):
             nature_discard.append(card)
         else:
@@ -86,17 +84,16 @@ class Player:
     def return_extinct_species(
         self,
         species: Species,
-        hunter_deck: list[HunterCard],
     ) -> bool:
         """Remove an extinct species and return its trait cards to the hand."""
         if species not in self.species:
             return False
 
         self.species.remove(species)
-        for card in species.trait_cards:
+        for card in list(species.trait_cards):
             if isinstance(card, Card):
                 self.hand.append(card)
             else:
-                self._return_trait_card(card, [], hunter_deck)
-        species.trait_cards.clear()
+                self._return_trait_card(card, [])
+            species.remove_trait_card(card)
         return True

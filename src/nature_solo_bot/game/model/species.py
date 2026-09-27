@@ -33,7 +33,7 @@ class Species:
             return False
 
         self.trait_cards.append(card)
-        
+        self._refresh_hunter_status()
         return True
 
     def remove_trait_card(self, card: TraitCard) -> bool:
@@ -41,6 +41,7 @@ class Species:
             return False
 
         self.trait_cards.remove(card)
+        self._refresh_hunter_status()
         return True
 
     def replace_trait_card(
@@ -55,4 +56,11 @@ class Species:
 
         card_index = self.trait_cards.index(old_card)
         self.trait_cards[card_index] = new_card
+        self._refresh_hunter_status()
         return True
+
+    def _refresh_hunter_status(self) -> None:
+        self.is_hunter = any(
+            card.trait.effect_id == HUNTER.effect_id
+            for card in self.trait_cards
+        )

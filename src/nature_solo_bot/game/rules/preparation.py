@@ -17,7 +17,6 @@ class PreparationRules:
         *,
         max_traits: int,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
         rng: Random,
     ) -> None:
         """Calls the correct Solo card effect"""
@@ -27,7 +26,6 @@ class PreparationRules:
                 player,
                 max_traits=max_traits,
                 nature_discard=nature_discard,
-                hunter_deck=hunter_deck,
                 rng=rng,
             )
 
@@ -36,7 +34,6 @@ class PreparationRules:
                 player,
                 max_traits=max_traits,
                 nature_discard=nature_discard,
-                hunter_deck=hunter_deck,
                 rng=rng,
             )
 
@@ -47,7 +44,6 @@ class PreparationRules:
         *,
         max_traits: int,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
         rng: Random,
     ) -> None:
         """When Played: Add the Hunter trait if the species is size 2 or less."""
@@ -57,7 +53,6 @@ class PreparationRules:
                 player,
                 max_traits=max_traits,
                 nature_discard=nature_discard,
-                hunter_deck=hunter_deck,
                 rng=rng,
             )
 
@@ -67,7 +62,6 @@ class PreparationRules:
         *,
         max_traits: int,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
         rng: Random,
     ) -> None:
         """When played: If Rani has no hunter, add the Hunter trait to her largest species (oldest breeaks ties)."""
@@ -81,7 +75,6 @@ class PreparationRules:
                 player,
                 max_traits=max_traits,
                 nature_discard=nature_discard,
-                hunter_deck=hunter_deck,
                 rng=rng,
             )
 
@@ -92,14 +85,13 @@ class PreparationRules:
         *,
         max_traits: int,
         nature_discard: list[Card],
-        hunter_deck: list[HunterCard],
         rng: Random,
     ) -> bool:
         is_full = len(species.trait_cards) >= max_traits
         if is_full and not species.trait_cards:
             return False
 
-        hunter_card = hunter_deck.pop() if hunter_deck else HunterCard()
+        hunter_card = HunterCard()
         if not is_full:
             return species.add_trait_card(hunter_card, max_traits=max_traits)
 
@@ -109,9 +101,6 @@ class PreparationRules:
             replacement_card,
             hunter_card,
             nature_discard,
-            hunter_deck,
             max_traits=max_traits,
         )
-        if not replaced:
-            hunter_deck.append(hunter_card)
         return replaced

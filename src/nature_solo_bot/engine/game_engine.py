@@ -106,6 +106,5 @@ class GameEngine:
                     player,
                     max_traits=self.state.max_traits,
                     nature_discard=self.state.nature_discard,
-                    hunter_deck=self.state.hunter_deck,
                     rng=self.rng,
                 )
