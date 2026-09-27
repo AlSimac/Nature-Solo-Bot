@@ -107,4 +107,5 @@ class GameEngine:
                     max_traits=self.state.max_traits,
                     nature_discard=self.state.nature_discard,
                     rng=self.rng,
+                    state=self.state,
                 )

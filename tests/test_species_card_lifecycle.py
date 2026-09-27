@@ -6,6 +6,7 @@ from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
+from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait_cards import HUNTER
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 
@@ -78,6 +79,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         species = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.append(species)
         cards = Card.init_nature_deck()[:3]
+        
         for card in cards:
             player.hand.append(card)
             self.assertTrue(player.play_trait_card(card, species, max_traits=3))
@@ -90,6 +92,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             max_traits=3,
             nature_discard=nature_discard,
             rng=random.Random(42),
+            state=GameState(),
         )
 
         self.assertTrue(replaced)

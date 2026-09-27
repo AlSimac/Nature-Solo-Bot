@@ -9,7 +9,10 @@ class TraitEffectRules:
     @staticmethod
     def on_attach(species: Species, trait: Trait, state: GameState) -> None:
         """Apply effects that trigger once when this trait is attached."""
-        pass
+        for effect in trait.effects:
+            if effect.timing is EffectTiming.ON_ATTACH:
+                if effect.effect_id == "make_hunter":
+                    species.is_hunter = True
 
     @staticmethod
     def on_timing(

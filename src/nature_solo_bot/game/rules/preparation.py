@@ -5,6 +5,8 @@ from ..model.player import Player
 from ..model.species import Species
 from ..model.solo_species import SoloEffect
 from ..model.hunter_card import HunterCard
+from .trait_effects import TraitEffectRules
+from ..model.state import GameState
 
 
 class PreparationRules:
@@ -18,6 +20,7 @@ class PreparationRules:
         max_traits: int,
         nature_discard: list[Card],
         rng: Random,
+        state: GameState,
     ) -> None:
         """Calls the correct Solo card effect"""
         if species.solo_species.effect_id == SoloEffect.PREDATOR:
@@ -27,6 +30,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
         if species.solo_species.effect_id == SoloEffect.PROPAGATOR:
@@ -35,6 +39,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
     @staticmethod
@@ -45,6 +50,7 @@ class PreparationRules:
         max_traits: int,
         nature_discard: list[Card],
         rng: Random,
+        state: GameState,
     ) -> None:
         """When Played: Add the Hunter trait if the species is size 2 or less."""
         if species.size <= 2:
@@ -54,6 +60,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
     @staticmethod
@@ -63,6 +70,7 @@ class PreparationRules:
         max_traits: int,
         nature_discard: list[Card],
         rng: Random,
+        state: GameState,
     ) -> None:
         """When played: If Rani has no hunter, add the Hunter trait to her largest species (oldest breeaks ties)."""
         if not any(existing_species.is_hunter for existing_species in player.species):
@@ -76,6 +84,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
     @staticmethod
@@ -86,6 +95,7 @@ class PreparationRules:
         max_traits: int,
         nature_discard: list[Card],
         rng: Random,
+        state: GameState,
     ) -> bool:
         is_full = len(species.trait_cards) >= max_traits
         if is_full and not species.trait_cards:
@@ -93,14 +103,17 @@ class PreparationRules:
 
         hunter_card = HunterCard()
         if not is_full:
-            return species.add_trait_card(hunter_card, max_traits=max_traits)
+            attached = species.add_trait_card(hunter_card, max_traits=max_traits)
+        else:
+            replacement_card = rng.choice(species.trait_cards)
+            attached = player.replace_trait_card(
+                species,
+                replacement_card,
+                hunter_card,
+                nature_discard,
+                max_traits=max_traits,
+            )
 
-        replacement_card = rng.choice(species.trait_cards)
-        replaced = player.replace_trait_card(
-            species,
-            replacement_card,
-            hunter_card,
-            nature_discard,
-            max_traits=max_traits,
-        )
-        return replaced
+        if attached:
+            TraitEffectRules.on_attach(species, hunter_card.trait, state)
+        return attached
