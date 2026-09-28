@@ -3,9 +3,9 @@ from .trait import EffectTiming, Trait, TraitEffect
 # Hunter trait
 HUNTER = Trait(
     name="Hunter",
-    effect_id="hunter",
     effects=(
-        TraitEffect(effect_id="set_hunter", timing=EffectTiming.ON_ATTACH),
+        # Flip the size dial
+        TraitEffect(effect_id="make_hunter", timing=EffectTiming.ON_ATTACH),
     ),
 )
 # ----- Nature Traits -----

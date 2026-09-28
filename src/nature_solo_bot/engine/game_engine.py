@@ -2,12 +2,22 @@
 
 
 import random
+from collections.abc import Iterator
 
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
+from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
+from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease
+from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.state import GamePhase, GameState
+from src.nature_solo_bot.game.model.state import (
+    DIFFICULTY_MEDIUM,
+    Difficulty,
+    GamePhase,
+    GameState,
+)
 from typing import TypeVar
 
 T = TypeVar("T")
@@ -15,14 +25,19 @@ T = TypeVar("T")
 class GameEngine:
     """Runs a complete game from initialization through resolution."""
 
-    def __init__(self, seed: int | None = None):
+    def __init__(
+        self,
+        seed: int | None = None,
+        difficulty: Difficulty = DIFFICULTY_MEDIUM,
+    ):
         self.seed = seed
+        self.difficulty = difficulty
         self.rng = random.Random(seed)
         self.state: GameState | None = None
         
     def setup_game(self) -> GameState:
         """Set up the initial game state."""
-        state = GameState()
+        state = GameState(difficulty=self.difficulty)
         state.seed = self.seed
         # Instantiate two players for the game
         state.players = Player.init_two_players()
@@ -79,14 +94,14 @@ class GameEngine:
         # Getting a new species for each player
         self.add_new_species()
 
-        # Starting by first player, each player draws 7 cards from the deck
+        # Starting by first player, each player draws cards based on difficulty.
         for player_offset in range(self.state.number_players):
             player_index = (
                 self.state.first_player_index + player_offset
             ) % self.state.number_players
             player = self.state.players[player_index]
 
-            for _ in range(7):
+            for _ in range(self.state.difficulty.cards_to_draw):
                 player.hand.append(self.draw_card(self.state.nature_deck, self.state.nature_discard))
 
     def add_new_species(self):
@@ -96,7 +111,7 @@ class GameEngine:
             new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
             
             if self.state.current_round == 1:
-                new_species.population = 3
+                new_species.population = self.state.difficulty.round_one_population
                 
             player.species.append(new_species)
 
@@ -107,4 +122,124 @@ class GameEngine:
                     max_traits=self.state.max_traits,
                     nature_discard=self.state.nature_discard,
                     rng=self.rng,
+                    state=self.state,
                 )
+
+    def run_adaptation_phase(self):
+        """Run the adaptation phase"""
+        self.state.current_phase = GamePhase.ADAPTATION
+
+        for offset in range(self.state.number_players):
+            player_index = (
+                self.state.first_player_index + offset
+            ) % self.state.number_players
+            player: Player = self.state.players[player_index]
+            # First, shuffle the player's hand
+            self.rng.shuffle(player.hand)
+            temporary_hand: list[TraitCard] = []
+
+            # Draw cards one by one, and check the symbol
+            while player.hand:
+                self.assign_card_to_correct_candidate(player, temporary_hand)
+
+            self.refresh_player_hand(player, temporary_hand)
+
+            # If the player only has hunters, run again through the cards in hand
+            # to increase size then population
+            if player.species and all(species.is_hunter for species in player.species):
+                while player.hand:
+                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.SIZE)
+                
+                self.refresh_player_hand(player, temporary_hand)
+
+                while player.hand:
+                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.POPULATION)
+                
+                self.refresh_player_hand(player, temporary_hand)
+
+    def refresh_player_hand(self, player, temporary_hand):
+        player.hand.extend(temporary_hand)
+        temporary_hand.clear()
+        self.rng.shuffle(player.hand)               
+
+    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
+        """Assign a card to its highest-priority matching species."""
+        picked_card: TraitCard = player.hand.pop(0)
+        is_assigned = False
+        drawn_symbol = picked_card.solo_symbol
+        for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
+            if candidate_symbol.increase in (SymbolIncrease.SIZE, SymbolIncrease.POPULATION):
+                candidate_assigned = self._apply_species_increase(
+                    candidate,
+                    picked_card,
+                    candidate_symbol.increase,
+                )
+            else:
+                candidate_assigned = candidate.add_trait_card(
+                    picked_card,
+                    max_traits=self.state.max_traits,
+                )
+
+            if not candidate_assigned:
+                continue
+
+            if candidate_symbol.is_hunter:
+                PreparationRules.add_hunter_card(
+                    candidate,
+                    player,
+                    max_traits=self.state.max_traits,
+                    nature_discard=self.state.nature_discard,
+                    rng=self.rng,
+                    state=self.state,
+                )
+
+            is_assigned = True
+            break
+
+        # if the card couldn't be assigned to a species,
+        # set it in a temporary hand.
+        if not is_assigned:
+            temporary_hand.append(picked_card)
+
+    def _candidate_symbols_for(
+        self,
+        player: Player,
+        drawn_symbol,
+    ) -> Iterator[tuple[Species, Symbol]]:
+        """Yield matching species and their matching symbol in priority order."""
+        for candidate in AdaptationRules.select_species_for_symbol(player, drawn_symbol):
+            candidate_symbol = next(
+                (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
+                None,
+            )
+            if candidate_symbol is not None:
+                yield candidate, candidate_symbol
+
+    def _apply_species_increase(
+        self,
+        candidate: Species,
+        picked_card: TraitCard,
+        increase: SymbolIncrease,
+    ) -> bool:
+        """Apply a size or population increase and discard its card."""
+        if increase == SymbolIncrease.SIZE:
+            if candidate.size >= self.state.max_size:
+                return False
+            candidate.size += 1
+        elif increase == SymbolIncrease.POPULATION:
+            candidate.population += 1
+        else:
+            return False
+
+        self.state.nature_discard.append(picked_card)
+        return True
+
+    def assign_leftover_cards_to_hunters(self, player: Player, temporary_hand: list[TraitCard], increase: SymbolIncrease):
+        """Use a leftover card to increase size or population for a hunter."""
+        picked_card: TraitCard = player.hand.pop(0)
+        drawn_symbol = picked_card.solo_symbol
+        for candidate, _ in self._candidate_symbols_for(player, drawn_symbol):
+            if self._apply_species_increase(candidate, picked_card, increase):
+                return
+
+        temporary_hand.append(picked_card)

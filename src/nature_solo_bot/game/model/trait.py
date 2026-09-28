@@ -19,7 +19,7 @@ class Trait:
     def __init__(
         self,
         name: str,
-        effect_id: str,
+        effect_id: str | None = None,
         attack_modifier: int = 0,
         defense_modifier: int = 0,
         effects: tuple[TraitEffect, ...] = (),
