@@ -74,7 +74,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertFalse(species.is_hunter)
         self.assertEqual(player.hand, [])
 
-    def test_effect_replaces_a_seeded_random_trait_card(self):
+    def test_hunter_effect_does_not_replace_traits_when_species_is_full(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.append(species)
@@ -84,9 +84,8 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             player.hand.append(card)
             self.assertTrue(player.play_trait_card(card, species, max_traits=3))
 
-        expected_replacement = random.Random(42).choice(cards)
         nature_discard = []
-        replaced = PreparationRules.add_hunter_card(
+        added = PreparationRules.add_hunter_card(
             species,
             player,
             max_traits=3,
@@ -95,10 +94,11 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             state=GameState(),
         )
 
-        self.assertTrue(replaced)
-        self.assertIs(nature_discard[0], expected_replacement)
+        self.assertFalse(added)
+        self.assertEqual(nature_discard, [])
+        self.assertEqual(species.trait_cards, cards)
         self.assertEqual(len(species.trait_cards), 3)
-        self.assertTrue(species.is_hunter)
+        self.assertFalse(species.is_hunter)
 
 
 if __name__ == "__main__":

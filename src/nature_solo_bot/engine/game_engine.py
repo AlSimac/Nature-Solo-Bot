@@ -167,13 +167,16 @@ class GameEngine:
         picked_card: TraitCard = player.hand.pop(0)
         is_assigned = False
         drawn_symbol = picked_card.solo_symbol
+
         for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
+            traits_before_assignment = len(candidate.trait_cards)
             if candidate_symbol.increase in (SymbolIncrease.SIZE, SymbolIncrease.POPULATION):
                 candidate_assigned = self._apply_species_increase(
                     candidate,
                     picked_card,
                     candidate_symbol.increase,
                 )
+
             else:
                 candidate_assigned = candidate.add_trait_card(
                     picked_card,
@@ -191,6 +194,10 @@ class GameEngine:
                     nature_discard=self.state.nature_discard,
                     rng=self.rng,
                     state=self.state,
+                    replace_random_trait=(
+                        candidate_symbol.increase is None
+                        and traits_before_assignment == self.state.max_traits - 1
+                    ),
                 )
 
             is_assigned = True
@@ -212,6 +219,7 @@ class GameEngine:
                 (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
                 None,
             )
+
             if candidate_symbol is not None:
                 yield candidate, candidate_symbol
 
@@ -225,9 +233,12 @@ class GameEngine:
         if increase == SymbolIncrease.SIZE:
             if candidate.size >= self.state.max_size:
                 return False
+            
             candidate.size += 1
+
         elif increase == SymbolIncrease.POPULATION:
             candidate.population += 1
+
         else:
             return False
 
@@ -238,8 +249,13 @@ class GameEngine:
         """Use a leftover card to increase size or population for a hunter."""
         picked_card: TraitCard = player.hand.pop(0)
         drawn_symbol = picked_card.solo_symbol
+
         for candidate, _ in self._candidate_symbols_for(player, drawn_symbol):
             if self._apply_species_increase(candidate, picked_card, increase):
                 return
 
         temporary_hand.append(picked_card)
+
+    def run_feeding_phase(self):
+        """"""
+        self.state.current_phase = GamePhase.FEEDING
