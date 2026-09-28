@@ -2,12 +2,13 @@
 
 
 import random
+from collections.abc import Iterator
 
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
-from src.nature_solo_bot.game.model.symbol import SymbolIncrease
+from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 from src.nature_solo_bot.game.model.species import Species
@@ -141,63 +142,43 @@ class GameEngine:
             while player.hand:
                 self.assign_card_to_correct_candidate(player, temporary_hand)
 
-            player.hand.extend(temporary_hand)
-            self.rng.shuffle(player.hand)
+            self.refresh_player_hand(player, temporary_hand)
 
             # If the player only has hunters, run again through the cards in hand
             # to increase size then population
             if player.species and all(species.is_hunter for species in player.species):
-                # TODO
-                pass
+                while player.hand:
+                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.SIZE)
+                
+                self.refresh_player_hand(player, temporary_hand)
+
+                while player.hand:
+                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.POPULATION)
+                
+                self.refresh_player_hand(player, temporary_hand)
+
+    def refresh_player_hand(self, player, temporary_hand):
+        player.hand.extend(temporary_hand)
+        temporary_hand.clear()
+        self.rng.shuffle(player.hand)               
 
     def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
+        """Assign a card to its highest-priority matching species."""
         picked_card: TraitCard = player.hand.pop(0)
         is_assigned = False
         drawn_symbol = picked_card.solo_symbol
-        # Compare the symbol trough all species
-        candidate_species: list[Species] = AdaptationRules.select_species_for_symbol(player, drawn_symbol)
-
-        for candidate in candidate_species:
-            candidate_symbol = next(
-                        (
-                            symbol
-                            for symbol in candidate.solo_symbols
-                            if symbol.symbol == drawn_symbol
-                        ),
-                        None,
-                    )  
-                    
-            if candidate_symbol is None:
-                continue
-
-            candidate_assigned = False
-            match candidate_symbol.increase:
-                case SymbolIncrease.SIZE:
-                    # Go to next candidate species if this one is at max size
-                    if candidate.size >= self.state.max_size:
-                        continue
-
-                    # Discard the card and increase size by 1
-                    candidate.size += 1
-                    self.state.nature_discard.append(picked_card)
-                    candidate_assigned = True
-
-                case SymbolIncrease.POPULATION:
-                    # Discard the card and increase population by 1
-                    candidate.population += 1
-                    self.state.nature_discard.append(picked_card)
-                    candidate_assigned = True
-
-                case None:
-                    # Go to next candidate if this one is at max traits
-                    if len(candidate.trait_cards) >= self.state.max_traits:
-                        continue
-
-                    # Give the card as a trait if there is a free trait slot.
-                    candidate_assigned = candidate.add_trait_card(
-                        picked_card,
-                        max_traits=self.state.max_traits,
-                    )
+        for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
+            if candidate_symbol.increase in (SymbolIncrease.SIZE, SymbolIncrease.POPULATION):
+                candidate_assigned = self._apply_species_increase(
+                    candidate,
+                    picked_card,
+                    candidate_symbol.increase,
+                )
+            else:
+                candidate_assigned = candidate.add_trait_card(
+                    picked_card,
+                    max_traits=self.state.max_traits,
+                )
 
             if not candidate_assigned:
                 continue
@@ -219,3 +200,46 @@ class GameEngine:
         # set it in a temporary hand.
         if not is_assigned:
             temporary_hand.append(picked_card)
+
+    def _candidate_symbols_for(
+        self,
+        player: Player,
+        drawn_symbol,
+    ) -> Iterator[tuple[Species, Symbol]]:
+        """Yield matching species and their matching symbol in priority order."""
+        for candidate in AdaptationRules.select_species_for_symbol(player, drawn_symbol):
+            candidate_symbol = next(
+                (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
+                None,
+            )
+            if candidate_symbol is not None:
+                yield candidate, candidate_symbol
+
+    def _apply_species_increase(
+        self,
+        candidate: Species,
+        picked_card: TraitCard,
+        increase: SymbolIncrease,
+    ) -> bool:
+        """Apply a size or population increase and discard its card."""
+        if increase == SymbolIncrease.SIZE:
+            if candidate.size >= self.state.max_size:
+                return False
+            candidate.size += 1
+        elif increase == SymbolIncrease.POPULATION:
+            candidate.population += 1
+        else:
+            return False
+
+        self.state.nature_discard.append(picked_card)
+        return True
+
+    def assign_leftover_cards_to_hunters(self, player: Player, temporary_hand: list[TraitCard], increase: SymbolIncrease):
+        """Use a leftover card to increase size or population for a hunter."""
+        picked_card: TraitCard = player.hand.pop(0)
+        drawn_symbol = picked_card.solo_symbol
+        for candidate, _ in self._candidate_symbols_for(player, drawn_symbol):
+            if self._apply_species_increase(candidate, picked_card, increase):
+                return
+
+        temporary_hand.append(picked_card)
