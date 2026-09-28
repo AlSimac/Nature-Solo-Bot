@@ -22,6 +22,7 @@ class Species:
         self.is_hunter: bool = False
         self.food: int = 0
         self.tree_color = TreeColor.PINK
+        self.solo_symbols = solo_card.pink_symbols
 
     @property
     def traits(self) -> list[Trait]:

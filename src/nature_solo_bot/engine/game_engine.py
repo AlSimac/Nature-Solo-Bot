@@ -4,7 +4,11 @@
 import random
 
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
+from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
+from src.nature_solo_bot.game.model.symbol import SymbolIncrease
+from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GamePhase, GameState
@@ -109,3 +113,99 @@ class GameEngine:
                     rng=self.rng,
                     state=self.state,
                 )
+
+    def run_adaptation_phase(self):
+        """Run the adaptation phase"""
+        self.state.current_phase = GamePhase.ADAPTATION
+
+        for offset in range(self.state.number_players):
+            player_index = (
+                self.state.first_player_index + offset
+            ) % self.state.number_players
+            player: Player = self.state.players[player_index]
+            # First, shuffle the player's hand
+            self.rng.shuffle(player.hand)
+            temporary_hand: list[TraitCard] = []
+
+            # Draw cards one by one, and check the symbol
+            while player.hand:
+                self.assign_card_to_correct_candidate(player, temporary_hand)
+
+            player.hand.extend(temporary_hand)
+            self.rng.shuffle(player.hand)
+
+            # If the player only has hunters, run again through the cards in hand
+            # to increase size then population
+            if player.species and all(species.is_hunter for species in player.species):
+                # TODO
+                pass
+
+    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
+        picked_card: TraitCard = player.hand.pop(0)
+        is_assigned = False
+        drawn_symbol = picked_card.solo_symbol
+        # Compare the symbol trough all species
+        candidate_species: list[Species] = AdaptationRules.select_species_for_symbol(player, drawn_symbol)
+
+        for candidate in candidate_species:
+            candidate_symbol = next(
+                        (
+                            symbol
+                            for symbol in candidate.solo_symbols
+                            if symbol.symbol == drawn_symbol
+                        ),
+                        None,
+                    )  
+                    
+            if candidate_symbol is None:
+                continue
+
+            candidate_assigned = False
+            match candidate_symbol.increase:
+                case SymbolIncrease.SIZE:
+                    # Go to next candidate species if this one is at max size
+                    if candidate.size >= self.state.max_size:
+                        continue
+
+                    # Discard the card and increase size by 1
+                    candidate.size += 1
+                    self.state.nature_discard.append(picked_card)
+                    candidate_assigned = True
+
+                case SymbolIncrease.POPULATION:
+                    # Discard the card and increase population by 1
+                    candidate.population += 1
+                    self.state.nature_discard.append(picked_card)
+                    candidate_assigned = True
+
+                case None:
+                    # Go to next candidate if this one is at max traits
+                    if len(candidate.trait_cards) >= self.state.max_traits:
+                        continue
+
+                    # Give the card as a trait if there is a free trait slot.
+                    candidate_assigned = candidate.add_trait_card(
+                        picked_card,
+                        max_traits=self.state.max_traits,
+                    )
+
+            if not candidate_assigned:
+                continue
+
+            if candidate_symbol.is_hunter:
+                PreparationRules.add_hunter_card(
+                    candidate,
+                    player,
+                    max_traits=self.state.max_traits,
+                    nature_discard=self.state.nature_discard,
+                    rng=self.rng,
+                    state=self.state,
+                )
+
+            is_assigned = True
+            break
+
+        # if the card couldn't be assigned to a species,
+        # set it in a temporary hand.
+        if not is_assigned:
+            temporary_hand.append(picked_card)
