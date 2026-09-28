@@ -1,6 +1,7 @@
 import unittest
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
+from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
 
 
 class GameEngineTest(unittest.TestCase):
@@ -24,6 +25,18 @@ from src.nature_solo_bot.game.model.state import GamePhase
 
 
 class GameEnginePreparationTest(unittest.TestCase):
+    def test_difficulty_controls_round_one_population_and_hand_size(self):
+        engine = GameEngine(seed=42, difficulty=DIFFICULTY_EASIEST)
+        state = engine.setup_game()
+
+        engine.run_preparation_phase()
+
+        self.assertIs(state.difficulty, DIFFICULTY_EASIEST)
+        self.assertEqual(len(state.players[0].hand), 5)
+        self.assertEqual(len(state.players[1].hand), 5)
+        self.assertEqual(state.players[0].species[1].population, 1)
+        self.assertEqual(state.players[1].species[1].population, 1)
+
     def test_initial_preparation(self):
         engine = GameEngine(seed=42)
         state = engine.setup_game()

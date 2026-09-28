@@ -11,7 +11,12 @@ from src.nature_solo_bot.game.model.symbol import SymbolIncrease
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.state import GamePhase, GameState
+from src.nature_solo_bot.game.model.state import (
+    DIFFICULTY_MEDIUM,
+    Difficulty,
+    GamePhase,
+    GameState,
+)
 from typing import TypeVar
 
 T = TypeVar("T")
@@ -19,14 +24,19 @@ T = TypeVar("T")
 class GameEngine:
     """Runs a complete game from initialization through resolution."""
 
-    def __init__(self, seed: int | None = None):
+    def __init__(
+        self,
+        seed: int | None = None,
+        difficulty: Difficulty = DIFFICULTY_MEDIUM,
+    ):
         self.seed = seed
+        self.difficulty = difficulty
         self.rng = random.Random(seed)
         self.state: GameState | None = None
         
     def setup_game(self) -> GameState:
         """Set up the initial game state."""
-        state = GameState()
+        state = GameState(difficulty=self.difficulty)
         state.seed = self.seed
         # Instantiate two players for the game
         state.players = Player.init_two_players()
@@ -83,14 +93,14 @@ class GameEngine:
         # Getting a new species for each player
         self.add_new_species()
 
-        # Starting by first player, each player draws 7 cards from the deck
+        # Starting by first player, each player draws cards based on difficulty.
         for player_offset in range(self.state.number_players):
             player_index = (
                 self.state.first_player_index + player_offset
             ) % self.state.number_players
             player = self.state.players[player_index]
 
-            for _ in range(7):
+            for _ in range(self.state.difficulty.cards_to_draw):
                 player.hand.append(self.draw_card(self.state.nature_deck, self.state.nature_discard))
 
     def add_new_species(self):
@@ -100,7 +110,7 @@ class GameEngine:
             new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
             
             if self.state.current_round == 1:
-                new_species.population = 3
+                new_species.population = self.state.difficulty.round_one_population
                 
             player.species.append(new_species)
 
