@@ -19,10 +19,12 @@ class Species:
         self.round_created: int = round_created
         self.population: int = 1
         self.size: int = 1
+        self.forage_value:int = self.size
         self.is_hunter: bool = False
         self.food: int = 0
         self.tree_color = TreeColor.PINK
         self.solo_symbols = solo_card.pink_symbols
+        self.is_hungry = True
 
     @property
     def traits(self) -> list[Trait]:

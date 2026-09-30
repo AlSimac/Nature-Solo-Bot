@@ -4,6 +4,7 @@
 import random
 from collections.abc import Iterator
 
+from nature_solo_bot.game.rules.resolution import Resolution
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
@@ -257,5 +258,65 @@ class GameEngine:
         temporary_hand.append(picked_card)
 
     def run_feeding_phase(self):
-        """"""
+        """Running the feeding phase"""
         self.state.current_phase = GamePhase.FEEDING
+        # Starting with first player, players will alternate feeding turns.
+        # The feeding phase continues until no species is hungry.
+        hungry_populations_left = any(
+            species.is_hungry
+            for player in self.state.players
+            for species in player.species
+        )
+
+        while hungry_populations_left:
+            for player_offset in range(self.state.number_players):
+                player_index = (
+                    self.state.first_player_index + player_offset
+                ) % self.state.number_players
+                active_player = self.state.players[player_index]
+                self.take_feeding_turn(active_player)
+
+    def take_feeding_turn(self, active_player: Player):
+        """ Main method for the feeding turns"""
+        ordered_species = self.choose_species_to_feed(active_player)
+
+        for species in ordered_species:
+            # The foragers feed first
+            if not species.is_hunter:
+                available_food = self.get_available_food(active_player)
+
+                # Check that WH is not empty
+                if available_food > 0:
+                    while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food):
+                        pass # TODO discard
+                
+                Resolution.forage(self.state, self.active_player, self.species)
+
+    def choose_species_to_feed(self, active_player: Player) -> list[Species]:
+        """Return hungry foragers by food yield, followed by hunters oldest-first."""
+        available_food: int = self.get_available_food(active_player)
+        foragers = [
+            (index, species, self.food_taken_in_one_forage(species, available_food))
+            for index, species in enumerate(active_player.species)
+            if species.is_hungry and not species.is_hunter
+        ]
+        foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
+        hunters = [
+            species
+            for species in active_player.species
+            if species.is_hungry and species.is_hunter
+        ]
+        return [species for _, species, _ in foragers] + hunters
+
+    def food_taken_in_one_forage(self, species: Species, available_food: int):
+        return min(
+                species.forage_value,
+                max(0, species.population - species.food),
+                available_food,
+            )
+
+    def get_available_food(self, active_player):
+        """ Calculate the amount of food in WH + 3 per cards in hands"""
+        available_food = self.state.watering_hole_plant + 3 * len(active_player.hand)
+        return available_food
+

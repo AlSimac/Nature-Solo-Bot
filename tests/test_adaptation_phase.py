@@ -3,10 +3,12 @@ from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_cards import (
     EVADER,
     GLUTTON,
+    NATURE_SOLO_CARDS,
     PREDATOR,
     PROPAGATOR,
     SCAMP,
@@ -16,9 +18,160 @@ from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease, SymbolName
+from src.nature_solo_bot.game.model.trait_cards import FAST
 
 
 class AdaptationPhaseTest(unittest.TestCase):
+    def test_seeded_random_species_and_sizes_print_initial_and_final_state(self):
+        engine = GameEngine(seed=73)
+        state = GameState()
+        state.current_round = 2
+        state.first_player_index = 0
+        state.players = [Player(name="Rani"), Player(name="Radwin")]
+        engine.state = state
+
+        solo_cards = engine.rng.sample(NATURE_SOLO_CARDS, 4)
+        nature_deck = Card.init_nature_deck()
+        engine.rng.shuffle(nature_deck)
+        for player_index, player in enumerate(state.players):
+            for species_index in range(2):
+                solo_card = solo_cards[player_index * 2 + species_index]
+                species = Species(
+                    solo_card=solo_card,
+                    round_created=species_index,
+                )
+                species.size = engine.rng.randint(1, state.max_size)
+                species.population = 3
+                player.species.append(species)
+            player.hand.extend(nature_deck[player_index * 7 : (player_index + 1) * 7])
+
+        def print_species(player):
+            print(f"{player.name} species:")
+            for species in player.species:
+                traits = ", ".join(trait.name for trait in species.traits) or "none"
+                print(
+                    f"  {species.solo_species.name}: traits=[{traits}], "
+                    f"size={species.size}, population={species.population}, "
+                    f"is_hunter={species.is_hunter}"
+                )
+
+        print("\nSeeded random setup before adaptation (seed=73):")
+        for player in state.players:
+            print_species(player)
+            cards = ", ".join(
+                f"{card.name} ({card.solo_symbol.value}, food {card.food_value})"
+                for card in player.hand
+            )
+            print(f"  Hand: {cards}")
+            self.assertEqual(len(player.species), 2)
+            self.assertEqual(len(player.hand), 7)
+
+        engine.run_adaptation_phase()
+
+        print("\nState after adaptation:")
+        for player in state.players:
+            print_species(player)
+
+        self.assertEqual(state.current_round, 2)
+        self.assertTrue(all(len(player.species) == 2 for player in state.players))
+
+    def _create_two_species_hunter_scenario(
+        self,
+        rani_sizes: tuple[int, int],
+        *,
+        non_hunter_index: int | None = None,
+    ) -> tuple[GameEngine, GameState, Player]:
+        engine = GameEngine(seed=42)
+        state = GameState()
+        state.first_player_index = 0
+        rani = Player(name="Rani")
+        radwin = Player(name="Radwin")
+        state.players = [rani, radwin]
+        engine.state = state
+
+        cards = [
+            Card("Fast", 1, FAST, SymbolName.GEAR, "Nature")
+            for _ in range(13)
+        ]
+        card_index = 0
+        for player in state.players:
+            for species_index in range(2):
+                species = Species(
+                    solo_card=SoloSpecies(
+                        name=f"{player.name} species {species_index + 1}",
+                        pink_symbols=[Symbol(SymbolName.GEAR)],
+                    ),
+                    round_created=species_index,
+                )
+                species.population = 3
+                if player is rani:
+                    species.size = rani_sizes[species_index]
+
+                if player is rani:
+                    is_hunter = species_index != non_hunter_index
+                    trait_count = 2 if is_hunter else 3
+                    for card in cards[card_index : card_index + trait_count]:
+                        self.assertTrue(
+                            species.add_trait_card(card, max_traits=state.max_traits)
+                        )
+                    card_index += trait_count
+                    if is_hunter:
+                        self.assertTrue(
+                            species.add_trait_card(
+                                HunterCard(),
+                                max_traits=state.max_traits,
+                            )
+                        )
+                player.species.append(species)
+
+        rani.hand.extend(cards[card_index : card_index + 7])
+        self.assertEqual(len(rani.hand), 7)
+        self.assertEqual(len(rani.species), 2)
+        self.assertEqual(len(radwin.species), 2)
+        return engine, state, rani
+
+    def test_all_rani_species_start_as_hunters_and_size_increases_precede_population(self):
+        engine, state, rani = self._create_two_species_hunter_scenario((1, 4))
+
+        self.assertTrue(all(species.is_hunter for species in rani.species))
+        with patch.object(engine.rng, "shuffle", lambda cards: None):
+            engine.run_adaptation_phase()
+
+        first_species, second_species = rani.species
+        self.assertEqual((first_species.size, first_species.population), (4, 7))
+        self.assertEqual((second_species.size, second_species.population), (4, 3))
+        self.assertEqual(rani.hand, [])
+        self.assertEqual(len(state.nature_discard), 7)
+
+    def test_all_max_size_hunter_species_increase_population(self):
+        engine, _, rani = self._create_two_species_hunter_scenario((4, 4))
+
+        self.assertTrue(all(species.is_hunter for species in rani.species))
+        with patch.object(engine.rng, "shuffle", lambda cards: None):
+            engine.run_adaptation_phase()
+
+        first_species, second_species = rani.species
+        self.assertEqual((first_species.size, first_species.population), (4, 10))
+        self.assertEqual((second_species.size, second_species.population), (4, 3))
+        self.assertEqual(rani.hand, [])
+
+    def test_hunter_fallback_does_not_run_when_one_species_is_not_a_hunter(self):
+        engine, state, rani = self._create_two_species_hunter_scenario(
+            (1, 1),
+            non_hunter_index=1,
+        )
+        original_cards = list(rani.hand)
+
+        self.assertTrue(rani.species[0].is_hunter)
+        self.assertFalse(rani.species[1].is_hunter)
+        with patch.object(engine.rng, "shuffle", lambda cards: None):
+            engine.run_adaptation_phase()
+
+        self.assertEqual(rani.hand, original_cards)
+        self.assertEqual([species.size for species in rani.species], [1, 1])
+        self.assertEqual([species.population for species in rani.species], [3, 3])
+        self.assertEqual(state.nature_discard, [])
+
     def test_round_two_adaptation_scenario_prints_hands_and_species(self):
         engine = GameEngine(seed=42)
         state = GameState()
