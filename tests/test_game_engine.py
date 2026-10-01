@@ -18,6 +18,26 @@ class GameEngineTest(unittest.TestCase):
         self.assertIn(state.first_player_index, range(state.number_players))
         print(f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}")
 
+    def test_choose_species_to_feed_excludes_fully_fed_species(self):
+        engine = GameEngine(seed=42)
+        state = engine.setup_game()
+        engine.add_new_species()
+        engine.add_new_species()
+        player = state.players[0]
+        for species in player.species:
+            species.is_hungry = False
+            species.is_hunter = False
+
+        hungry_forager = player.species[0]
+        hungry_forager.is_hungry = True
+        fully_fed_hunter = player.species[1]
+        fully_fed_hunter.is_hunter = True
+
+        self.assertEqual(
+            engine.choose_species_to_feed(player),
+            [hungry_forager],
+        )
+
     def test_feeding_candidates_prioritize_food_yield_for_both_players(self):
         engine = GameEngine(seed=42)
         state = engine.setup_game()

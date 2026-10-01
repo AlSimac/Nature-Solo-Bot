@@ -4,6 +4,8 @@
 import random
 from collections.abc import Iterator
 
+from nature_solo_bot.engine.action_applier import ActionApplier
+from nature_solo_bot.game.rules.feeding import FeedingRules
 from nature_solo_bot.game.rules.resolution import Resolution
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
@@ -287,33 +289,39 @@ class GameEngine:
 
                 # Check that WH is not empty
                 if available_food > 0:
-                    while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food):
-                        pass # TODO discard
+                    # Discard cards to add plant food to watering hole until there is enough to feed the species
+                    # or until the player runs out of cards in hand
+                    while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food) and active_player.hand:
+                        ActionApplier.discard_card_for_watering_hole(self.state, active_player)
                 
-                Resolution.forage(self.state, self.active_player, self.species)
+                FeedingRules.forage(self.state, self.active_player, self.species)
 
     def choose_species_to_feed(self, active_player: Player) -> list[Species]:
         """Return hungry foragers by food yield, followed by hunters oldest-first."""
         available_food: int = self.get_available_food(active_player)
-        foragers = [
-            (index, species, self.food_taken_in_one_forage(species, available_food))
-            for index, species in enumerate(active_player.species)
-            if species.is_hungry and not species.is_hunter
-        ]
-        foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
-        hunters = [
+        # Filter out fully-fed species
+        hungry_species = [
             species
             for species in active_player.species
-            if species.is_hungry and species.is_hunter
+            if species.is_hungry
+        ]
+        # Sort foragers first, by food taken in one forage, then by age
+        foragers = [
+            (index, species, self.food_taken_in_one_forage(species, available_food))
+            for index, species in enumerate(hungry_species)
+            if not species.is_hunter
+        ]
+        foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
+        # Sort the hunters by age
+        hunters = [
+            species
+            for species in hungry_species
+            if species.is_hunter
         ]
         return [species for _, species, _ in foragers] + hunters
 
     def food_taken_in_one_forage(self, species: Species, available_food: int):
-        return min(
-                species.forage_value,
-                max(0, species.population - species.food),
-                available_food,
-            )
+        return FeedingRules.plant_food_taken_in_one_forage(species, available_food)
 
     def get_available_food(self, active_player):
         """ Calculate the amount of food in WH + 3 per cards in hands"""
