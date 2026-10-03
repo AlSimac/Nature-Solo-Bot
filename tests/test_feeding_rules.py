@@ -14,13 +14,37 @@ class FeedingRulesTest(unittest.TestCase):
 
         sorted_preys = FeedingRules.sort_preys(
             player,
-            [own_old_large, own_new_small, opponent_old_large, opponent_young_small],
+            [
+                (own_old_large, 1),
+                (own_new_small, 1),
+                (opponent_old_large, 0),
+                (opponent_young_small, 0),
+            ],
         )
 
         self.assertEqual(
             sorted_preys,
-            [opponent_young_small, opponent_old_large, own_new_small, own_old_large],
+            [
+                (opponent_young_small, 0),
+                (opponent_old_large, 0),
+                (own_new_small, 1),
+                (own_old_large, 1),
+            ],
         )
+
+    def test_count_own_losses_keeps_loss_with_selected_prey(self):
+        own_prey = object()
+        opponent_prey = object()
+        player = SimpleNamespace(species=[own_prey])
+
+        least_dangerous_preys = FeedingRules.count_own_losses(
+            SimpleNamespace(),
+            SimpleNamespace(),
+            [own_prey, opponent_prey],
+            player,
+        )
+
+        self.assertEqual(least_dangerous_preys, [(opponent_prey, 0)])
 
 
 if __name__ == "__main__":

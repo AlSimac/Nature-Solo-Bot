@@ -25,6 +25,8 @@ class Player:
         self.is_first_player: bool = False
         self.is_active: bool = False
         self.metadata: dict = {}
+        self.lost_population: int = 0
+        self.extinct_size: int = 0
         
 
     def init_two_players() -> list["Player"]:
@@ -76,8 +78,10 @@ class Player:
     ) -> None:
         if isinstance(card, HunterCard):
             return
+        
         elif isinstance(card, Card):
             nature_discard.append(card)
+            
         else:
             raise TypeError(f"Unsupported trait card type: {type(card).__name__}")
 
@@ -89,11 +93,16 @@ class Player:
         if species not in self.species:
             return False
 
+        self.extinct_size += species.size
         self.species.remove(species)
+
         for card in list(species.trait_cards):
             if isinstance(card, Card):
                 self.hand.append(card)
+
             else:
                 self._return_trait_card(card, [])
+
             species.remove_trait_card(card)
+
         return True

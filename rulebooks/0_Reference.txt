@@ -1,0 +1,198 @@
+Reference Guide
+The Nature reference guide provides additional detail on key words (pages 2-3), trait cards (pages 4-6),
+round structure (page 7), and iconography (page 8).
+Key Words
+The key words have specific in-game meanings that explain how a trait will interact with the core rules, and
+how it will interact with the other traits.
+Feeding Action: There are two basic feeding actions; foraging and hunting.
+Forage: When a species forages, it eats plant(s) from the watering hole equal to the
+number on its size dial .
+Hunt When a species hunts, it eats meat from the supply equal to the size of the
+hunted species, and 1 population of the hunted species is killed.
+Starve: When a species starves, choose a hungry population of that species to be killed.
+Pass: Once a player passes as their feeding action, they are out of the Feeding Phase for
+the remainder of the round.
+Other Actions
+Eats: A species may eat only if it has hungry population . When a species eats, place
+each eaten food on one of its hungry population .
+Killed: When a population is killed, flip it over so this side is showing and return any
+food on it to the supply. Killed population will be added as population to your
+new species in the next round. The player who controls the population that is
+killed chooses which population is killed.
+Other Key Words
+Card: A card is either in the draw deck, the discard pile, or your hand. Cards played
+on species are called traits. Discarding a card from your hand provides a benefit.
+Discarding a trait does not provide a benefit.
+Extinction: A species goes extinct when its last population is killed or starves. See Extinction
+in the Nature rulebook for further clarification (on page 17).
+Food: Plant and meat are food used to keep population from starving.
+Fed Population: A fed population has food on it: or
+Fully Fed: A species is fully fed when none of its population are hungry.
+Hungry: A population is hungry when it doesn’t have a food on it. A species is hungry when
+it has at least 1 hungry population .
+Ignores: A species that ignores a defensive trait while hunting will act as if that trait does not
+exist. This key word is used in several of the modules.
+Size: Every species has a size dial to indicate its size. The size of a species determines
+how effective it is at hunting, defending, and foraging.
+Species: A species consists of size dial , at least 1 population , and between 0 and 3 traits.
+Trait: When a card is played on a species, it is called a trait. Each species may have up to 3
+traits. Any trait that is removed from a species becomes a card again.
+Each trait in the Nature deck has effects that are additive, so having two copies of the same trait will have
+double the effect, and having three copies will have triple the effect.
++1
++2
+Tigers use their claws to hold their prey. Sloth bears use
+their claws to dig up insects and fend off tigers.
++2 when eating .
+Clawed
+3
+Clawed
+A species with Clawed adds 2 to their hunt value when hunting, and 1 to their
+defense value when being hunted.
+When eating plants , a species with Clawed will eat 2 additional plants from
+the same source.
+Blackbuck antelopes combine 50 - 60mph speed and
+sudden changes in direction to evade predators.
+Can only be hunted by a species with as
+many Fast traits.
+Fast
+3
+Fast
+A species with Fast cannot be hunted by a species with fewer copies of the Fast trait.
+For example, a hunter with 1 copy of Fast can hunt a species with 1 copy of Fast, but
+cannot hunt a species with 2 or 3 copies of Fast.
+Tadjik Markhors have corkscrew-like horns used for defense
+and for establishing dominance when finding a mate.
+When hunted, kills of the hunter
+equal to this species’ size.
+Horned
+3
+Horned
+When a species with Horned is hunted, it will kill population of the hunter. The
+number of population it kills will be equal to its size.
+For example, when a size 1 species with Horned is hunted, it will kill 1
+population of the hunter, and when a size 3 species with Horned is hunted, it will
+kill 3 population of the hunter.
+When a species with Horned is hunted, 1 of its population will be killed as
+normal, even if the hunter goes extinct.
+Hunter
+Hunter
+When the Hunter trait is played, flip its size dial to the HUNTER side. A
+species with Hunter can no longer take the forage feeding action. It takes the hunt
+feeding action instead.
+A hunter can hunt a species if:
+• its hunt value is equal to or greater than the defense value of the hunted
+species, and
+• it has the traits necessary to overcome the hunted species’ defensive traits.
+• it has hungry population .
+See Hunting in the Nature rulebook for further clarification (on page 16).
+Red pandas adjust their diet based upon what food is
+available, making them resilient to a changing environment.
++1
+After any of your species forages or hunts:
+eats 2 if there is still in the
+watering hole.
+Opportunistic
+3
+Opportunistic
+A species with Opportunistic adds 1 to their defense value when being hunted.
+Opportunistic triggers after any of your species forages or hunts, as long as there are
+plants in the watering hole after the feeding action is taken. When Opportunistic
+triggers, the species with Opportunistic eats 2 meat from the supply.
+Each Opportunistic triggers independently. For example, if a species has 2 copies of
+Opportunistic and a Social, it would eat a total of 8 meat .
+Pangolins have keratin scales similar to fingernails
+which provide protection when they curl into a tight ball.
++4
+Plated
+3
+Plated
+A species with Plated adds 4 to their defense value when being hunted.
+Lammergeier vultures will drop bones from hundreds of
+feet to break them and feed off the released marrow.
+After any species hunts:
+eats 2 .
+Scavenging
+3
+Scavenging
+Scavenging triggers after any species hunts. This may happen on your feeding turn or
+on someone else’s feeding turn.
+When Scavenging triggers, the species with Scavenging eats 2 meat from the supply.
+Each Scavenging triggers independently. For example, if a species has 2 copies of
+Scavenging and a Social, it would eat a total of 8 meat .
+Douc Langur monkeys share child rearing responsibilities
+to allow mothers the opportunity to forage.
++2 food when eating.
+Social
+3
+Social
+A species with Social gets 2 additional food when it eats. The additional food comes
+from the same source as the original food; from the watering hole when it’s plant(s)
+and from the supply when it’s meat .
+Social works when a species forages or hunts, but it can be combined with any trait
+that eats such as Opportunistic, Scavenging, and Tusked.
+A male Babirusa must grind its tusks, or they will keep
+growing until they penetrate its own skull.
++2
+When the watering hole becomes empty:
+eats 1
+Tusked
+3
+Tusked
+A species with Tusked adds 2 to their defense value when being hunted.
+Tusked triggers any time the last plant is removed from the watering hole. Tusked
+traits will trigger regardless of who the current player is and may trigger multiple
+times in a round if additional food is added to the watering hole.
+When Tusked triggers, the species with Tusked eats 1 meat from the supply.
+Each Tusked triggers independently. For example, if a species has 2 copies of Tusked
+and a Social, it would eat a total of 6 meat .
+This chart shows the round structure in Nature combined with additional steps from Modules 1-6.
+ROUND STRUCTURE
+Preparation
+1. Roll the climate die Arctic, Climate, Desert
+Add plants to the watering Hole
+Add fed population to the
+faraway Place Flight
+2. Get a new species
+3. Draw cards
+Adapting Phase 1. Play cards
+2. Reveal trait cards
+Feeding Phase
+1. Move Fat Tissue food Arctic
+2. Take feeding turns
+3. Resolve climate ( / ) Arctic, Climate, Desert
+Scoring
+1. Migrated species return Flight
+2. Nesting triggers Flight
+3. Put food behind player screens
+4. Game End Bonus Arctic
+5. Flip Disaster Card Natural DisastersAPPROXIMATE ANIMAL SIZE
+Size 1:
+1-50 lbs
+Rabbit / Fox
+Size 2:
+50-200 lbs
+Gazelle / Wolf
+Size 3:
+200-700 lbs
+Bear / Lion
+Size 4:
+700+ lbs
+Elk / Crocodile
+Icon Description Module
+size dial
+flip the size dial
+population
+killed population
+plant food
+meat food
+fruit food Amazon Rainforest
+fed population Amazon Rainforest, Flight
+defense value
+hunt value
+trigger ability
+cold protection Tundra, Climate, Natural Disasters
+heat protection Climate, Sahara Desert
+poison resistance Amazon Rainforest
+immediate effect Natural Disasters
+comet token Natural Disasters

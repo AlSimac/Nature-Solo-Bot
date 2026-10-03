@@ -294,7 +294,20 @@ class GameEngine:
                     while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food) and active_player.hand:
                         ActionApplier.discard_card_for_watering_hole(self.state, active_player)
                 
-                FeedingRules.forage(self.state, self.active_player, self.species)
+                    FeedingRules.forage(self.state, self.species)
+
+                # If the WH is empty and the player cannot discard cards,
+                # try to feed the next species
+                else:
+                    continue
+
+            # Feeding hunters
+            else:
+                successful_hunt = FeedingRules.hunt(self.state, active_player, species)
+
+                if not successful_hunt:
+                    continue
+            
 
     def choose_species_to_feed(self, active_player: Player) -> list[Species]:
         """Return hungry foragers by food yield, followed by hunters oldest-first."""
