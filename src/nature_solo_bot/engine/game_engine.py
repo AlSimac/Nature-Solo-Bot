@@ -14,7 +14,7 @@ from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
 from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
-from src.nature_solo_bot.game.model.species import Species
+from src.nature_solo_bot.game.model.species import Species, TreeColor
 from src.nature_solo_bot.game.model.state import (
     DIFFICULTY_MEDIUM,
     Difficulty,
@@ -270,17 +270,24 @@ class GameEngine:
             for species in player.species
         )
 
-        while hungry_populations_left:
+        while hungry_populations_left and any(not player.passing for player in self.state.players):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
                 ) % self.state.number_players
                 active_player = self.state.players[player_index]
-                self.take_feeding_turn(active_player)
+
+                if not active_player.passing:
+                    self.take_feeding_turn(active_player)
 
     def take_feeding_turn(self, active_player: Player):
         """ Main method for the feeding turns"""
         ordered_species = self.choose_species_to_feed(active_player)
+        fed_species_this_turn = False
+
+        if not ordered_species:
+            active_player.passing = True
+            return
 
         for species in ordered_species:
             # The foragers feed first
@@ -294,7 +301,9 @@ class GameEngine:
                     while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food) and active_player.hand:
                         ActionApplier.discard_card_for_watering_hole(self.state, active_player)
                 
-                    FeedingRules.forage(self.state, self.species)
+                    FeedingRules.forage(self.state, species)
+                    fed_species_this_turn = True
+                    break
 
                 # If the WH is empty and the player cannot discard cards,
                 # try to feed the next species
@@ -303,11 +312,19 @@ class GameEngine:
 
             # Feeding hunters
             else:
-                successful_hunt = FeedingRules.hunt(self.state, active_player, species)
+                valid_target_found = FeedingRules.hunt(self.state, active_player, species)
 
-                if not successful_hunt:
+                if not valid_target_found:
                     continue
-            
+
+                fed_species_this_turn = True
+                break
+
+        # if no species can be fed, starve one population
+        if not fed_species_this_turn:
+            starving_species = self.choose_species_to_starve(active_player)[0]
+            FeedingRules.starve(self.state, starving_species, active_player)
+
 
     def choose_species_to_feed(self, active_player: Player) -> list[Species]:
         """Return hungry foragers by food yield, followed by hunters oldest-first."""
@@ -341,3 +358,49 @@ class GameEngine:
         available_food = self.state.watering_hole_plant + 3 * len(active_player.hand)
         return available_food
 
+    def choose_species_to_starve(self, active_player: Player):
+        """ Choose a species to starve one population"""
+        # Starve the oldest hunter first
+        hunters = [
+            species
+            for species in active_player.species
+            if species.is_hungry and species.is_hunter
+        ]
+        # Then foragers that didn't feed yet.
+        # Lowest population first, then oldest first
+        unfed_foragers = sorted(
+            [
+                species
+                for species in active_player.species
+                if species.total_food == 0 and not species.is_hunter
+            ],
+            key=lambda species: (species.population, species.round_created),
+        )
+        # Then oldest remaining foragers
+        foragers = [
+            species
+            for species in active_player.species
+            if species.is_hungry and not species.is_hunter and species not in unfed_foragers
+        ]
+        return hunters + unfed_foragers + foragers
+        
+    def run_scoring_phase(self):
+        """Run the scoring phase of the game."""
+        self.state.current_phase = GamePhase.SCORING
+
+        for player_offset in range(self.state.number_players):
+            player_index = (
+                self.state.first_player_index + player_offset
+            ) % self.state.number_players
+            active_player: Player = self.state.players[player_index]
+            # Place food in the player's score bag
+            active_player.score += sum(species.total_food for species in active_player.species)
+            active_player.passing = False
+            
+            for species in active_player.species:
+                species.plant_food = 0
+                species.meat_food = 0
+                species.lost_population = 0
+
+                if species.lost_population > 0:
+                    species.switch_tree_color()

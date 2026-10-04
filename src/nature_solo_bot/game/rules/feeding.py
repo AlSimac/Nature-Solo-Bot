@@ -27,9 +27,16 @@ class FeedingRules:
         
         least_dangerous_preys = FeedingRules.count_own_losses(state, hunter, possible_preys, player)
         chosen_prey, loss = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
+        prey_owner = next(
+            (candidate for candidate in state.players if chosen_prey in candidate.species),
+            None,
+        )
+        if prey_owner is None:
+            raise ValueError("The selected prey does not belong to a player in the game state.")
+
         # Actual hunt action
-        FeedingRules.eat(hunter, MEAT, chosen_prey.size)        
-        ActionApplier.kill_one_population(state, chosen_prey, player)
+        FeedingRules.eat(hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food)))        
+        ActionApplier.kill_one_population(state, chosen_prey, prey_owner)
 
         if loss > 0:
             ActionApplier.kill_populations(state, loss, hunter, player)
@@ -43,9 +50,6 @@ class FeedingRules:
 
         elif food_type == MEAT:
             species.meat_food += food_taken
-            
-        species.total_food += food_taken
-        species.is_hungry = species.total_food < species.population
 
     def starve(state: GameState, species: Species, player: Player):
         """ Define the starve action"""
@@ -113,4 +117,3 @@ class FeedingRules:
                 prey_and_loss[0].round_created,
             ),
         )
-        

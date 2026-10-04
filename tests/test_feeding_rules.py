@@ -1,10 +1,36 @@
 import unittest
 from types import SimpleNamespace
 
+from src.nature_solo_bot.game.model.player import Player
+from src.nature_solo_bot.game.model.solo_species import SoloSpecies
+from src.nature_solo_bot.game.model.species import Species
+from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_hunt_attributes_prey_death_and_extinction_to_prey_owner(self):
+        prey_owner = Player(name="Prey owner")
+        hunter_owner = Player(name="Hunter owner")
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 1
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.size = 2
+        hunter.population = 1
+        hunter.is_hunter = True
+        prey_owner.species.append(prey)
+        hunter_owner.species.append(hunter)
+        state = GameState()
+        state.players = [prey_owner, hunter_owner]
+
+        result = FeedingRules.hunt(state, hunter_owner, hunter)
+
+        self.assertTrue(result)
+        self.assertNotIn(prey, prey_owner.species)
+        self.assertEqual(prey_owner.lost_population, 1)
+        self.assertEqual(prey_owner.extinct_size, prey.size)
+        self.assertEqual(hunter_owner.lost_population, 0)
+
     def test_sort_preys_prioritizes_opponents_size_then_age(self):
         own_old_large = SimpleNamespace(size=3, round_created=1)
         own_new_small = SimpleNamespace(size=1, round_created=2)

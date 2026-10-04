@@ -27,6 +27,7 @@ class Player:
         self.metadata: dict = {}
         self.lost_population: int = 0
         self.extinct_size: int = 0
+        self.passing: bool = False
         
 
     def init_two_players() -> list["Player"]:

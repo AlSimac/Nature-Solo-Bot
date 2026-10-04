@@ -25,11 +25,12 @@ class GameEngineTest(unittest.TestCase):
         engine.add_new_species()
         player = state.players[0]
         for species in player.species:
-            species.is_hungry = False
+            species.plant_food = species.population
             species.is_hunter = False
 
         hungry_forager = player.species[0]
-        hungry_forager.is_hungry = True
+        hungry_forager.plant_food = 0
+        hungry_forager.meat_food = 0
         fully_fed_hunter = player.species[1]
         fully_fed_hunter.is_hunter = True
 
@@ -50,18 +51,20 @@ class GameEngineTest(unittest.TestCase):
             player.hand = [state.nature_deck[0]]
             species = player.species
             for candidate in species:
-                candidate.is_hungry = True
                 candidate.is_hunter = False
 
-            species[0].forage_value = 5
+            species[0].size = 5
             species[0].population = 4
-            species[0].food = 1
-            species[1].forage_value = 3
+            species[0].plant_food = 1
+            species[0].meat_food = 0
+            species[1].size = 3
             species[1].population = 5
-            species[1].food = 0
-            species[2].forage_value = 4
+            species[1].plant_food = 0
+            species[1].meat_food = 0
+            species[2].size = 4
             species[2].population = 4
-            species[2].food = 0
+            species[2].plant_food = 0
+            species[2].meat_food = 0
 
             self.assertEqual(
                 engine.take_feeding_turn(player),
@@ -69,15 +72,18 @@ class GameEngineTest(unittest.TestCase):
             )
 
             state.watering_hole_plant = 0
-            species[0].forage_value = 2
+            species[0].size = 2
             species[0].population = 2
-            species[0].food = 0
-            species[1].forage_value = 4
+            species[0].plant_food = 0
+            species[0].meat_food = 0
+            species[1].size = 4
             species[1].population = 5
-            species[1].food = 0
-            species[2].forage_value = 1
+            species[1].plant_food = 0
+            species[1].meat_food = 0
+            species[2].size = 1
             species[2].population = 2
-            species[2].food = 0
+            species[2].plant_food = 0
+            species[2].meat_food = 0
             self.assertEqual(
                 engine.take_feeding_turn(player),
                 [species[1], species[0], species[2]],
@@ -85,7 +91,7 @@ class GameEngineTest(unittest.TestCase):
 
             species[0].is_hunter = True
             species[1].is_hunter = True
-            species[1].is_hungry = False
+            species[1].plant_food = species[1].population
             self.assertEqual(
                 engine.take_feeding_turn(player),
                 [species[2], species[0]],

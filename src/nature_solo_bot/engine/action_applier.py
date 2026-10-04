@@ -25,8 +25,6 @@ class ActionApplier:
         """ Kill one population of a species"""
         # If the species is fully-fed, the killed population was carrying 1 food
         if species.total_food == species.population:
-            species.total_food -= 1
-
             if species.plant_food > 0:
                 species.plant_food -= 1
 
@@ -34,6 +32,7 @@ class ActionApplier:
                 species.meat_food -= 1
         
         species.population -= 1
+        species.lost_population += 1
         player.lost_population += 1
 
         # Killing the last species triggers extinction
