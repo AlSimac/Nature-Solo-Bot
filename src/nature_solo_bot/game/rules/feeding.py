@@ -26,7 +26,7 @@ class FeedingRules:
             return False
         
         least_dangerous_preys = FeedingRules.count_own_losses(state, hunter, possible_preys, player)
-        chosen_prey, loss = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
+        chosen_prey, _ = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
         prey_owner = next(
             (candidate for candidate in state.players if chosen_prey in candidate.species),
             None,
@@ -34,14 +34,21 @@ class FeedingRules:
         if prey_owner is None:
             raise ValueError("The selected prey does not belong to a player in the game state.")
 
+        hunter_loss = FeedingRules.hunter_loss_caused_by_prey(chosen_prey, hunter)
+
         # Actual hunt action
         FeedingRules.eat(hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food)))        
         ActionApplier.kill_one_population(state, chosen_prey, prey_owner)
 
-        if loss > 0:
-            ActionApplier.kill_populations(state, loss, hunter, player)
+        if hunter_loss > 0:
+            ActionApplier.kill_populations(state, hunter_loss, hunter, player)
 
         return True
+
+    @staticmethod
+    def hunter_loss_caused_by_prey(prey: Species, hunter: Species) -> int:
+        """Return hunter populations lost to prey traits; trait effects are not implemented yet."""
+        return 0
 
     def eat(species: Species, food_type: str, food_taken: int):
         """ Define the eat action"""
@@ -73,7 +80,7 @@ class FeedingRules:
                 if species is not hunter and species.defense_value <= hunter.attack_value:
                     valid_targets.append(species)
 
-            return valid_targets
+        return valid_targets
 
     @staticmethod
     def count_own_losses(
@@ -86,11 +93,9 @@ class FeedingRules:
         loss_per_prey = {}
 
         for prey in possible_preys:
-            if prey in player.species:
-                loss_per_prey[prey] = 1
-
-            else:
-                loss_per_prey[prey] = 0
+            own_prey_loss = int(prey in player.species)
+            hunter_loss = FeedingRules.hunter_loss_caused_by_prey(prey, hunter)
+            loss_per_prey[prey] = own_prey_loss + hunter_loss
 
         if not loss_per_prey:
             return []

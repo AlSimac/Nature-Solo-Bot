@@ -100,12 +100,15 @@ class PreparationRules:
         replace_random_trait: bool = False,
     ) -> bool:
         is_full = len(species.trait_cards) >= max_traits
+
         if is_full and not species.trait_cards:
             return False
 
         hunter_card = HunterCard()
+
         if not is_full:
             attached = species.add_trait_card(hunter_card, max_traits=max_traits)
+
         elif replace_random_trait and species.trait_cards:
             replacement_card = rng.choice(species.trait_cards)
             attached = player.replace_trait_card(
@@ -115,9 +118,11 @@ class PreparationRules:
                 nature_discard,
                 max_traits=max_traits,
             )
+
         else:
             return False
 
         if attached:
             TraitEffectRules.on_attach(species, hunter_card.trait, state)
+
         return attached

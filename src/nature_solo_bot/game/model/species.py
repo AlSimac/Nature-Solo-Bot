@@ -107,3 +107,14 @@ class Species:
         elif self.tree_color == TreeColor.BLUE_LAST_ROUND:
             self.tree_color = TreeColor.PINK_LAST_ROUND
             self.solo_symbols = self.solo_species.pink_symbols
+
+    def last_round_tree(self):
+        """ Switch to the last round tree of the same color"""
+        if self.tree_color == TreeColor.PINK:
+            self.tree_color = TreeColor.PINK_LAST_ROUND
+            self.solo_symbols = self.solo_species.pink_symbols_last_round
+
+        elif self.tree_color == TreeColor.BLUE:
+            self.tree_color = TreeColor.BLUE_LAST_ROUND
+            self.solo_symbols = self.solo_species.blue_symbols_last_round
+            

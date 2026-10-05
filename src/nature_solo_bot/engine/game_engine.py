@@ -115,7 +115,11 @@ class GameEngine:
             
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
-                
+
+            new_species.population += player.lost_population
+            player.lost_population = 0
+            new_species.size += max(self.state.max_size, player.lost_size)
+            player.lost_size = 0
             player.species.append(new_species)
 
             if solo_card.effect_id:
@@ -140,6 +144,15 @@ class GameEngine:
             # First, shuffle the player's hand
             self.rng.shuffle(player.hand)
             temporary_hand: list[TraitCard] = []
+
+            # in last round, keep one card in hand for each forager
+            if self.state.current_round == self.state.total_rounds:
+                num_foragers = sum(1 for species in player.species if not species.is_hunter)
+                
+                for _ in range(num_foragers):
+                    card: TraitCard = player.hand.pop(0)
+                    temporary_hand.append(card)
+
 
             # Draw cards one by one, and check the symbol
             while player.hand:
@@ -400,7 +413,11 @@ class GameEngine:
             for species in active_player.species:
                 species.plant_food = 0
                 species.meat_food = 0
-                species.lost_population = 0
 
                 if species.lost_population > 0:
                     species.switch_tree_color()
+
+                species.lost_population = 0
+
+                if self.state.current_round == self.state.total_rounds - 1:
+                    species.last_round_tree()

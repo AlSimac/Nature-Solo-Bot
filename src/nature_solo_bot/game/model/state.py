@@ -36,6 +36,7 @@ class GameState:
     def __init__(self, difficulty: Difficulty = DIFFICULTY_MEDIUM):
         """Initialize a fresh game state."""
         self.current_round: int = 0
+        self.total_rounds: int = 4
         self.current_phase: GamePhase = GamePhase.PREPARATION
         self.number_players: int = 2
         self.players: list[Player] = []

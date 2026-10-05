@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
@@ -9,6 +10,24 @@ from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_hunting_own_prey_does_not_kill_hunter_population(self):
+        player = Player(name="Hunter owner")
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.size = 2
+        hunter.population = 2
+        hunter.is_hunter = True
+        player.species.extend([prey, hunter])
+        state = GameState()
+        state.players = [player]
+
+        result = FeedingRules.hunt(state, player, hunter)
+
+        self.assertTrue(result)
+        self.assertNotIn(prey, player.species)
+        self.assertEqual(hunter.population, 2)
+        self.assertEqual(player.lost_population, 1)
+
     def test_hunt_attributes_prey_death_and_extinction_to_prey_owner(self):
         prey_owner = Player(name="Prey owner")
         hunter_owner = Player(name="Hunter owner")
@@ -71,6 +90,30 @@ class FeedingRulesTest(unittest.TestCase):
         )
 
         self.assertEqual(least_dangerous_preys, [(opponent_prey, 0)])
+
+    def test_prey_selection_minimizes_own_prey_and_hunter_losses(self):
+        player = Player(name="Hunter owner")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        own_prey = Species(solo_card=SoloSpecies(), round_created=1)
+        opponent_prey = Species(solo_card=SoloSpecies(), round_created=1)
+        player.species.extend([hunter, own_prey])
+
+        def hunter_loss_caused_by_prey(prey, hunter):
+            return 2 if prey is opponent_prey else 0
+
+        with patch.object(
+            FeedingRules,
+            "hunter_loss_caused_by_prey",
+            side_effect=hunter_loss_caused_by_prey,
+        ):
+            least_dangerous_preys = FeedingRules.count_own_losses(
+                GameState(),
+                hunter,
+                [opponent_prey, own_prey],
+                player,
+            )
+
+        self.assertEqual(least_dangerous_preys, [(own_prey, 1)])
 
 
 if __name__ == "__main__":
