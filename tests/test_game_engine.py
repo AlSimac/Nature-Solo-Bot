@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
+from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
 
 
@@ -28,6 +29,19 @@ class GameEngineTest(unittest.TestCase):
 
         self.assertIs(engine.state, state)
         self.assertEqual(state.current_round, state.total_rounds + 1)
+
+    def test_define_winner_uses_total_species_traits_to_break_score_tie(self):
+        engine = GameEngine(seed=42)
+        state = engine.setup_game()
+        first_player, second_player = state.players
+        first_player.score = second_player.score = 10
+
+        cards = Card.init_nature_deck()
+        first_player.species[0].add_trait_card(cards[0], max_traits=state.max_traits)
+        second_player.species[0].add_trait_card(cards[1], max_traits=state.max_traits)
+        second_player.species[0].add_trait_card(cards[2], max_traits=state.max_traits)
+
+        self.assertIs(engine.define_winner(), second_player)
 
     def test_choose_species_to_feed_excludes_fully_fed_species(self):
         engine = GameEngine(seed=42)

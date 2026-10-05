@@ -1,5 +1,7 @@
 """Card model stub."""
 
+from copy import deepcopy
+
 from .solo_cards import NATURE_SOLO_CARDS
 from .solo_species import SoloSpecies
 from .nature_symbols import SYMBOL_BY_TRAIT_AND_FOOD
@@ -55,9 +57,4 @@ class Card(TraitCard):
     @staticmethod
     def init_solo_deck() -> list["SoloSpecies"]:
         """Initialize a deck of solo cards for the game."""
-        cards_in_deck = []
-
-        for solo_card in NATURE_SOLO_CARDS:
-            cards_in_deck.extend(SoloSpecies() for _ in range(len(NATURE_SOLO_CARDS)))
-
-        return cards_in_deck
+        return [deepcopy(solo_card) for solo_card in NATURE_SOLO_CARDS]

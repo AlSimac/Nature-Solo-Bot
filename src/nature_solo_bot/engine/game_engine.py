@@ -92,6 +92,7 @@ class GameEngine:
             self.run_scoring_phase()
             state.current_round += 1
 
+        self.define_winner()
         return state
 
     def run_preparation_phase(self):
@@ -128,13 +129,20 @@ class GameEngine:
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
+            new_species = Species(
+                solo_card=solo_card, round_created=self.state.current_round
+            )
 
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
 
             new_species.population += player.lost_population
             player.lost_population = 0
+            new_species.size = min(
+                new_species.size + player.extinct_size,
+                self.state.max_size,
+            )
+            player.extinct_size = 0
             player.species.append(new_species)
 
             if solo_card.effect_id:
@@ -155,11 +163,15 @@ class GameEngine:
         self.state.current_phase = GamePhase.ADAPTATION
 
         for offset in range(self.state.number_players):
-            player_index = (self.state.first_player_index + offset) % self.state.number_players
+            player_index = (
+                self.state.first_player_index + offset
+            ) % self.state.number_players
             player: Player = self.state.players[player_index]
             AdaptationRules.adapt_player(self.state, player, self.rng)
 
-    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
+    def assign_card_to_correct_candidate(
+        self, player: Player, temporary_hand: list[TraitCard]
+    ):
         """Compatibility entry point for assigning one adaptation card."""
         if self.state is None:
             raise RuntimeError("The game has not been initialized.")
@@ -188,10 +200,14 @@ class GameEngine:
         # Starting with first player, players will alternate feeding turns.
         # The feeding phase continues until no species is hungry.
         hungry_populations_left = any(
-            species.is_hungry for player in self.state.players for species in player.species
+            species.is_hungry
+            for player in self.state.players
+            for species in player.species
         )
 
-        while hungry_populations_left and any(not player.passing for player in self.state.players):
+        while hungry_populations_left and any(
+            not player.passing for player in self.state.players
+        ):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -222,3 +238,17 @@ class GameEngine:
 
         self.state.current_phase = GamePhase.SCORING
         ScoringRules.score_round(self.state, self.rng)
+
+    def define_winner(self) -> Player | None:
+        """Determine the winner, using surviving species' trait count as a tiebreaker."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
+
+        return max(
+            self.state.players,
+            key=lambda player: (
+                player.score,
+                sum(len(species.trait_cards) for species in player.species),
+            ),
+            default=None,
+        )
