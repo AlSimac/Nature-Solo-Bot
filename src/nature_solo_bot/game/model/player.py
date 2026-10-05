@@ -1,10 +1,10 @@
 """Player model for a Nature-like board game."""
 
 from .solo_species import SoloSpecies
-from src.nature_solo_bot.game.model.card import Card
-from src.nature_solo_bot.game.model.hunter_card import HunterCard
-from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.trait_card import TraitCard
+from .card import Card
+from .hunter_card import HunterCard
+from .species import Species
+from .trait_card import TraitCard
 
 
 class Player:

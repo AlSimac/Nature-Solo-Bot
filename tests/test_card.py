@@ -1,11 +1,33 @@
 import unittest
+from collections import Counter
 
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.solo_cards import NATURE_SOLO_CARDS
 from src.nature_solo_bot.game.model.symbol import SymbolName
 from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER, CLAWED
 
 
 class CardTest(unittest.TestCase):
+    def test_init_solo_deck_copies_species_with_their_symbols(self):
+        deck = Card.init_solo_deck()
+
+        self.assertEqual(
+            Counter(card.name for card in deck),
+            Counter({card.name: 1 for card in NATURE_SOLO_CARDS}),
+        )
+        self.assertEqual(len(deck), 6)
+        self.assertTrue(
+            all(
+                card.pink_symbols
+                and card.blue_symbols
+                and card.pink_symbols_last_round
+                and card.blue_symbols_last_round
+                for card in deck
+            )
+        )
+        self.assertIsNot(deck[0], deck[1])
+        self.assertIsNot(deck[0].pink_symbols, deck[1].pink_symbols)
+
     def test_init_nature_deck(self):
         deck = Card.init_nature_deck()
 

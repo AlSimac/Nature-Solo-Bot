@@ -1,25 +1,23 @@
 """Game engine stub."""
 
 import random
-from collections.abc import Iterator
+from typing import TypeVar
 
-from nature_solo_bot.engine.action_applier import ActionApplier
-from nature_solo_bot.game.model.hunter_card import HunterCard
-from nature_solo_bot.game.rules.feeding import FeedingRules
-from src.nature_solo_bot.game.model.card import Card
-from src.nature_solo_bot.game.model.player import Player
-from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
-from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease
-from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.rules.preparation import PreparationRules
-from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.state import (
+from ..game.model.card import Card
+from ..game.model.player import Player
+from ..game.model.species import Species
+from ..game.model.state import (
     DIFFICULTY_MEDIUM,
     Difficulty,
     GamePhase,
     GameState,
 )
-from typing import TypeVar
+from ..game.model.symbol import SymbolIncrease
+from ..game.model.trait_card import TraitCard
+from ..game.rules.adaptation import AdaptationRules
+from ..game.rules.feeding import FeedingRules
+from ..game.rules.preparation import PreparationRules
+from ..game.rules.scoring import ScoringRules
 
 T = TypeVar("T")
 
@@ -83,14 +81,19 @@ class GameEngine:
 
         return deck.pop()
 
-    def run_game(self):
-        """Run the entire game"""
-        while self.state.current_round <= self.state.total_rounds:
+    def run_game(self) -> GameState:
+        """Set up and run the entire game, returning its final state."""
+        state = self.state if self.state is not None else self.setup_game()
+
+        while state.current_round <= state.total_rounds:
             self.run_preparation_phase()
             self.run_adaptation_phase()
             self.run_feeding_phase()
             self.run_scoring_phase()
-            self.state.current_round += 1
+            state.current_round += 1
+
+        self.define_winner()
+        return state
 
     def run_preparation_phase(self):
         """Run the preparation phase of the game."""
@@ -126,15 +129,20 @@ class GameEngine:
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
+            new_species = Species(
+                solo_card=solo_card, round_created=self.state.current_round
+            )
 
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
 
             new_species.population += player.lost_population
             player.lost_population = 0
-            new_species.size += max(self.state.max_size, player.lost_size)
-            player.lost_size = 0
+            new_species.size = min(
+                new_species.size + player.extinct_size,
+                self.state.max_size,
+            )
+            player.extinct_size = 0
             player.species.append(new_species)
 
             if solo_card.effect_id:
@@ -148,159 +156,58 @@ class GameEngine:
                 )
 
     def run_adaptation_phase(self):
-        """Run the adaptation phase"""
+        """Run the adaptation phase."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
+
         self.state.current_phase = GamePhase.ADAPTATION
 
         for offset in range(self.state.number_players):
-            player_index = (self.state.first_player_index + offset) % self.state.number_players
+            player_index = (
+                self.state.first_player_index + offset
+            ) % self.state.number_players
             player: Player = self.state.players[player_index]
-            # First, shuffle the player's hand
-            self.rng.shuffle(player.hand)
-            temporary_hand: list[TraitCard] = []
+            AdaptationRules.adapt_player(self.state, player, self.rng)
 
-            # in last round, keep one card in hand for each forager
-            if self.state.current_round == self.state.total_rounds:
-                num_foragers = sum(1 for species in player.species if not species.is_hunter)
+    def assign_card_to_correct_candidate(
+        self, player: Player, temporary_hand: list[TraitCard]
+    ):
+        """Compatibility entry point for assigning one adaptation card."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
 
-                for _ in range(num_foragers):
-                    card: TraitCard = player.hand.pop(0)
-                    temporary_hand.append(card)
-
-            # Draw cards one by one, and check the symbol
-            while player.hand:
-                self.assign_card_to_correct_candidate(player, temporary_hand)
-
-            self.refresh_player_hand(player, temporary_hand)
-
-            # If the player only has hunters, run again through the cards in hand
-            # to increase size then population
-            if player.species and all(species.is_hunter for species in player.species):
-                while player.hand:
-                    self.assign_leftover_cards_to_hunters(
-                        player, temporary_hand, SymbolIncrease.SIZE
-                    )
-
-                self.refresh_player_hand(player, temporary_hand)
-
-                while player.hand:
-                    self.assign_leftover_cards_to_hunters(
-                        player, temporary_hand, SymbolIncrease.POPULATION
-                    )
-
-                self.refresh_player_hand(player, temporary_hand)
-
-    def refresh_player_hand(self, player, temporary_hand):
-        player.hand.extend(temporary_hand)
-        temporary_hand.clear()
-        self.rng.shuffle(player.hand)
-
-    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
-        """Assign a card to its highest-priority matching species."""
-        picked_card: TraitCard = player.hand.pop(0)
-        is_assigned = False
-        drawn_symbol = picked_card.solo_symbol
-
-        for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
-            traits_before_assignment = len(candidate.trait_cards)
-
-            if candidate_symbol.increase in (
-                SymbolIncrease.SIZE,
-                SymbolIncrease.POPULATION,
-            ):
-                candidate_assigned = self._apply_species_increase(
-                    candidate,
-                    picked_card,
-                    candidate_symbol.increase,
-                )
-
-            else:
-                candidate_assigned = candidate.add_trait_card(
-                    picked_card,
-                    max_traits=self.state.max_traits,
-                )
-
-            if not candidate_assigned:
-                continue
-
-            if candidate_symbol.is_hunter and not candidate.is_hunter:
-                PreparationRules.add_hunter_card(
-                    candidate,
-                    player,
-                    max_traits=self.state.max_traits,
-                    nature_discard=self.state.nature_discard,
-                    rng=self.rng,
-                    state=self.state,
-                    replace_random_trait=True,
-                )
-
-            is_assigned = True
-            break
-
-        # if the card couldn't be assigned to a species,
-        # set it in a temporary hand.
-        if not is_assigned:
-            temporary_hand.append(picked_card)
-
-    def _candidate_symbols_for(
-        self,
-        player: Player,
-        drawn_symbol,
-    ) -> Iterator[tuple[Species, Symbol]]:
-        """Yield matching species and their matching symbol in priority order."""
-        for candidate in AdaptationRules.select_species_for_symbol(player, drawn_symbol):
-            candidate_symbol = next(
-                (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
-                None,
-            )
-
-            if candidate_symbol is not None:
-                yield candidate, candidate_symbol
-
-    def _apply_species_increase(
-        self,
-        candidate: Species,
-        picked_card: TraitCard,
-        increase: SymbolIncrease,
-    ) -> bool:
-        """Apply a size or population increase and discard its card."""
-        if increase == SymbolIncrease.SIZE:
-            if candidate.size >= self.state.max_size:
-                return False
-
-            candidate.size += 1
-
-        elif increase == SymbolIncrease.POPULATION:
-            candidate.population += 1
-
-        else:
-            return False
-
-        self.state.nature_discard.append(picked_card)
-        return True
+        AdaptationRules.assign_card_to_correct_candidate(
+            self.state, player, temporary_hand, self.rng
+        )
 
     def assign_leftover_cards_to_hunters(
         self, player: Player, temporary_hand: list[TraitCard], increase: SymbolIncrease
     ):
-        """Use a leftover card to increase size or population for a hunter."""
-        picked_card: TraitCard = player.hand.pop(0)
-        drawn_symbol = picked_card.solo_symbol
+        """Compatibility entry point for using leftover adaptation cards."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
 
-        for candidate, _ in self._candidate_symbols_for(player, drawn_symbol):
-            if self._apply_species_increase(candidate, picked_card, increase):
-                return
-
-        temporary_hand.append(picked_card)
+        AdaptationRules.assign_leftover_cards_to_hunters(
+            self.state, player, temporary_hand, increase
+        )
 
     def run_feeding_phase(self):
-        """Running the feeding phase"""
+        """Run the feeding phase."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
+
         self.state.current_phase = GamePhase.FEEDING
         # Starting with first player, players will alternate feeding turns.
         # The feeding phase continues until no species is hungry.
         hungry_populations_left = any(
-            species.is_hungry for player in self.state.players for species in player.species
+            species.is_hungry
+            for player in self.state.players
+            for species in player.species
         )
 
-        while hungry_populations_left and any(not player.passing for player in self.state.players):
+        while hungry_populations_left and any(
+            not player.passing for player in self.state.players
+        ):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -310,142 +217,38 @@ class GameEngine:
                 if not active_player.passing:
                     self.take_feeding_turn(active_player)
 
-    def take_feeding_turn(self, active_player: Player):
-        """Main method for the feeding turns"""
-        ordered_species = self.choose_species_to_feed(active_player)
-        fed_species_this_turn = False
+    def take_feeding_turn(self, active_player: Player) -> None:
+        """Delegate one player's feeding turn to the feeding rules."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
 
-        if not ordered_species:
-            active_player.passing = True
-            return
-
-        for species in ordered_species:
-            # The foragers feed first
-            if not species.is_hunter:
-                available_food = self.get_available_food(active_player)
-
-                # Check that WH is not empty
-                if available_food > 0:
-                    # Discard cards to add plant food to watering hole until there is enough to feed the species
-                    # or until the player runs out of cards in hand
-                    while (
-                        self.state.watering_hole_plant
-                        < self.food_taken_in_one_forage(species, available_food)
-                        and active_player.hand
-                    ):
-                        ActionApplier.discard_card_for_watering_hole(self.state, active_player)
-
-                    FeedingRules.forage(self.state, species)
-                    fed_species_this_turn = True
-                    break
-
-                # If the WH is empty and the player cannot discard cards,
-                # try to feed the next species
-                else:
-                    continue
-
-            # Feeding hunters
-            else:
-                valid_target_found = FeedingRules.hunt(self.state, active_player, species)
-
-                if not valid_target_found:
-                    continue
-
-                fed_species_this_turn = True
-                break
-
-        # if no species can be fed, starve one population
-        if not fed_species_this_turn:
-            starving_species = self.choose_species_to_starve(active_player)[0]
-            FeedingRules.starve(self.state, starving_species, active_player)
+        FeedingRules.take_feeding_turn(self.state, active_player, self.rng)
 
     def choose_species_to_feed(self, active_player: Player) -> list[Species]:
-        """Return hungry foragers by food yield, followed by hunters oldest-first."""
-        available_food: int = self.get_available_food(active_player)
-        # Filter out fully-fed species
-        hungry_species = [species for species in active_player.species if species.is_hungry]
-        # Sort foragers first, by food taken in one forage, then by age
-        foragers = [
-            (index, species, self.food_taken_in_one_forage(species, available_food))
-            for index, species in enumerate(hungry_species)
-            if not species.is_hunter
-        ]
-        foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
-        # Sort the hunters by age
-        hunters = [species for species in hungry_species if species.is_hunter]
-        return [species for _, species, _ in foragers] + hunters
+        """Return hungry species in the order selected by the feeding rules."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
 
-    def food_taken_in_one_forage(self, species: Species, available_food: int):
-        return FeedingRules.plant_food_taken_in_one_forage(species, available_food)
-
-    def get_available_food(self, active_player):
-        """Calculate the amount of food in WH + 3 per cards in hands"""
-        available_food = self.state.watering_hole_plant + 3 * len(active_player.hand)
-        return available_food
-
-    def choose_species_to_starve(self, active_player: Player):
-        """Choose a species to starve one population"""
-        # Starve the oldest hunter first
-        hunters = [
-            species for species in active_player.species if species.is_hungry and species.is_hunter
-        ]
-        # Then foragers that didn't feed yet.
-        # Lowest population first, then oldest first
-        unfed_foragers = sorted(
-            [
-                species
-                for species in active_player.species
-                if species.total_food == 0 and not species.is_hunter
-            ],
-            key=lambda species: (species.population, species.round_created),
-        )
-        # Then oldest remaining foragers
-        foragers = [
-            species
-            for species in active_player.species
-            if species.is_hungry and not species.is_hunter and species not in unfed_foragers
-        ]
-        return hunters + unfed_foragers + foragers
+        return FeedingRules.choose_species_to_feed(self.state, active_player)
 
     def run_scoring_phase(self):
         """Run the scoring phase of the game."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
+
         self.state.current_phase = GamePhase.SCORING
+        ScoringRules.score_round(self.state, self.rng)
 
-        for player_offset in range(self.state.number_players):
-            player_index = (
-                self.state.first_player_index + player_offset
-            ) % self.state.number_players
-            active_player: Player = self.state.players[player_index]
-            # Place food in the player's score bag
-            active_player.score += sum(species.total_food for species in active_player.species)
-            active_player.passing = False
+    def define_winner(self) -> Player | None:
+        """Determine the winner, using surviving species' trait count as a tiebreaker."""
+        if self.state is None:
+            raise RuntimeError("The game has not been initialized.")
 
-            for species in active_player.species:
-                # reinitialize the species' food
-                species.plant_food = 0
-                species.meat_food = 0
-
-                # if a species lost population this round
-                # switch tree color and remove a random trait
-                if species.lost_population > 0:
-                    self.scoring_species_modification(species)
-                    species.lost_population = 0
-
-                # if the next round is the last one, switch to last round tree
-                if self.state.current_round == self.state.total_rounds - 1:
-                    species.last_round_tree()
-
-            # Game end bonus
-            if self.state.current_round == self.state.total_rounds:
-                active_player.score += sum(2 for species in active_player.species)
-
-    def scoring_species_modification(self, species):
-        """Switch tree color and remove a random trait if the species lost population this round."""
-        species.switch_tree_color()
-
-        if species.trait_cards:
-            removed_trait = self.rng.choice(species.trait_cards)
-            species.remove_trait_card(removed_trait)
-
-            if isinstance(removed_trait, Card):
-                self.state.nature_discard.append(removed_trait)
+        return max(
+            self.state.players,
+            key=lambda player: (
+                player.score,
+                sum(len(species.trait_cards) for species in player.species),
+            ),
+            default=None,
+        )

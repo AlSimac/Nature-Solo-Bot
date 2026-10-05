@@ -1,17 +1,22 @@
 """Action application stub."""
 
-from nature_solo_bot.game.model.player import Player
-from nature_solo_bot.game.model.species import Species
-from nature_solo_bot.game.model.state import GameState
-from nature_solo_bot.game.model.trait_card import TraitCard
+from random import Random
+
+from ..game.model.player import Player
+from ..game.model.species import Species
+from ..game.model.state import GameState
 
 
 class ActionApplier:
     """Applies a selected action to the current game state."""
 
-    def discard_card_for_watering_hole(state: GameState, player: Player):
+    def discard_card_for_watering_hole(
+        state: GameState,
+        player: Player,
+        rng: Random,
+    ):
         """Discard a card to add food to the watering hole"""
-        state.rng.shuffle(player.hand)
+        rng.shuffle(player.hand)
         discarded_card = player.hand.pop()
         state.nature_discard.append(discarded_card)
         state.watering_hole_plant += discarded_card.food_value
