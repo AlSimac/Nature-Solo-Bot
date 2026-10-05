@@ -11,6 +11,7 @@ class ActionApplier:
 
     def discard_card_for_watering_hole(state: GameState, player: Player):
         """Discard a card to add food to the watering hole"""
+        state.rng.shuffle(player.hand)
         discarded_card = player.hand.pop()
         state.nature_discard.append(discarded_card)
         state.watering_hole_plant += discarded_card.food_value

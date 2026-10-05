@@ -419,6 +419,104 @@ class AdaptationPhaseTest(unittest.TestCase):
         self.assertEqual(len(species.trait_cards), 1)
         self.assertIs(species.trait_cards[0].trait, species.traits[0])
 
+    def test_red_population_symbol_replaces_full_species_trait_with_hunter(self):
+        engine = GameEngine(seed=42)
+        state = GameState()
+        engine.state = state
+        player = Player(name="Rani")
+        species = Species(
+            solo_card=SoloSpecies(
+                pink_symbols=[
+                    Symbol(
+                        SymbolName.CAT,
+                        increase=SymbolIncrease.POPULATION,
+                        make_hunter=True,
+                    )
+                ]
+            ),
+            round_created=1,
+        )
+        existing_cards = Card.init_nature_deck()[: state.max_traits]
+        for existing_card in existing_cards:
+            self.assertTrue(
+                species.add_trait_card(existing_card, max_traits=state.max_traits)
+            )
+        player.species.append(species)
+
+        incoming_card = next(
+            card
+            for card in Card.init_nature_deck()
+            if card.solo_symbol == SymbolName.CAT
+        )
+        player.hand.append(incoming_card)
+
+        with patch.object(engine.rng, "choice", return_value=existing_cards[1]):
+            engine.assign_card_to_correct_candidate(player, [])
+
+        self.assertEqual(species.population, 2)
+        self.assertEqual(species.size, 1)
+        self.assertTrue(species.is_hunter)
+        self.assertEqual(len(species.trait_cards), state.max_traits)
+        self.assertEqual(
+            sum(trait.name == "Hunter" for trait in species.traits),
+            1,
+        )
+        self.assertIn(existing_cards[0], species.trait_cards)
+        self.assertNotIn(existing_cards[1], species.trait_cards)
+        self.assertIn(existing_cards[2], species.trait_cards)
+        self.assertIn(existing_cards[1], state.nature_discard)
+        self.assertIn(incoming_card, state.nature_discard)
+        self.assertEqual(player.hand, [])
+
+    def test_red_size_symbol_replaces_full_species_trait_with_hunter(self):
+        engine = GameEngine(seed=42)
+        state = GameState()
+        engine.state = state
+        player = Player(name="Rani")
+        species = Species(
+            solo_card=SoloSpecies(
+                pink_symbols=[
+                    Symbol(
+                        SymbolName.CAT,
+                        increase=SymbolIncrease.SIZE,
+                        make_hunter=True,
+                    )
+                ]
+            ),
+            round_created=1,
+        )
+        existing_cards = Card.init_nature_deck()[: state.max_traits]
+        for existing_card in existing_cards:
+            self.assertTrue(
+                species.add_trait_card(existing_card, max_traits=state.max_traits)
+            )
+        player.species.append(species)
+
+        incoming_card = next(
+            card
+            for card in Card.init_nature_deck()
+            if card.solo_symbol == SymbolName.CAT
+        )
+        player.hand.append(incoming_card)
+
+        with patch.object(engine.rng, "choice", return_value=existing_cards[1]):
+            engine.assign_card_to_correct_candidate(player, [])
+
+        self.assertEqual(species.population, 1)
+        self.assertEqual(species.size, 2)
+        self.assertTrue(species.is_hunter)
+        self.assertEqual(len(species.trait_cards), state.max_traits)
+        self.assertEqual(
+            sum(trait.name == "Hunter" for trait in species.traits),
+            1,
+        )
+        self.assertIn(existing_cards[0], species.trait_cards)
+        self.assertNotIn(existing_cards[1], species.trait_cards)
+        self.assertIn(existing_cards[2], species.trait_cards)
+        self.assertIn(existing_cards[1], state.nature_discard)
+        self.assertIn(incoming_card, state.nature_discard)
+        self.assertEqual(player.hand, [])
+
 
 if __name__ == "__main__":
     unittest.main()

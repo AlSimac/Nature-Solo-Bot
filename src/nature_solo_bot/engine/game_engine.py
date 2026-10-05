@@ -4,16 +4,15 @@ import random
 from collections.abc import Iterator
 
 from nature_solo_bot.engine.action_applier import ActionApplier
+from nature_solo_bot.game.model.hunter_card import HunterCard
 from nature_solo_bot.game.rules.feeding import FeedingRules
-from nature_solo_bot.game.rules.resolution import Resolution
 from src.nature_solo_bot.game.model.card import Card
-from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
 from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
-from src.nature_solo_bot.game.model.species import Species, TreeColor
+from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import (
     DIFFICULTY_MEDIUM,
     Difficulty,
@@ -84,16 +83,28 @@ class GameEngine:
 
         return deck.pop()
 
+    def run_game(self):
+        """Run the entire game"""
+        while self.state.current_round <= self.state.total_rounds:
+            self.run_preparation_phase()
+            self.run_adaptation_phase()
+            self.run_feeding_phase()
+            self.run_scoring_phase()
+            self.state.current_round += 1
+
     def run_preparation_phase(self):
         """Run the preparation phase of the game."""
         if self.state is None:
             raise RuntimeError("The game has not been initialized.")
 
         self.state.current_phase = GamePhase.PREPARATION
-        # Switch the first player to the new one
-        self.state.first_player_index = (
-            self.state.first_player_index + 1
-        ) % self.state.number_players
+
+        # Keep the setup-selected starter for round one, then alternate each round.
+        if self.state.current_round > 1:
+            self.state.first_player_index = (
+                self.state.first_player_index + 1
+            ) % self.state.number_players
+
         # Add plant food equal tothe food value of the drawn card to the watering hole
         self.state.watering_hole_plant += self.state.plant_per_round
         # Getting a new species for each player
@@ -115,9 +126,7 @@ class GameEngine:
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(
-                solo_card=solo_card, round_created=self.state.current_round
-            )
+            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
 
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
@@ -143,9 +152,7 @@ class GameEngine:
         self.state.current_phase = GamePhase.ADAPTATION
 
         for offset in range(self.state.number_players):
-            player_index = (
-                self.state.first_player_index + offset
-            ) % self.state.number_players
+            player_index = (self.state.first_player_index + offset) % self.state.number_players
             player: Player = self.state.players[player_index]
             # First, shuffle the player's hand
             self.rng.shuffle(player.hand)
@@ -153,9 +160,7 @@ class GameEngine:
 
             # in last round, keep one card in hand for each forager
             if self.state.current_round == self.state.total_rounds:
-                num_foragers = sum(
-                    1 for species in player.species if not species.is_hunter
-                )
+                num_foragers = sum(1 for species in player.species if not species.is_hunter)
 
                 for _ in range(num_foragers):
                     card: TraitCard = player.hand.pop(0)
@@ -189,18 +194,15 @@ class GameEngine:
         temporary_hand.clear()
         self.rng.shuffle(player.hand)
 
-    def assign_card_to_correct_candidate(
-        self, player: Player, temporary_hand: list[TraitCard]
-    ):
+    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
         """Assign a card to its highest-priority matching species."""
         picked_card: TraitCard = player.hand.pop(0)
         is_assigned = False
         drawn_symbol = picked_card.solo_symbol
 
-        for candidate, candidate_symbol in self._candidate_symbols_for(
-            player, drawn_symbol
-        ):
+        for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
             traits_before_assignment = len(candidate.trait_cards)
+
             if candidate_symbol.increase in (
                 SymbolIncrease.SIZE,
                 SymbolIncrease.POPULATION,
@@ -220,7 +222,7 @@ class GameEngine:
             if not candidate_assigned:
                 continue
 
-            if candidate_symbol.is_hunter:
+            if candidate_symbol.is_hunter and not candidate.is_hunter:
                 PreparationRules.add_hunter_card(
                     candidate,
                     player,
@@ -228,10 +230,7 @@ class GameEngine:
                     nature_discard=self.state.nature_discard,
                     rng=self.rng,
                     state=self.state,
-                    replace_random_trait=(
-                        candidate_symbol.increase is None
-                        and traits_before_assignment == self.state.max_traits - 1
-                    ),
+                    replace_random_trait=True,
                 )
 
             is_assigned = True
@@ -250,11 +249,7 @@ class GameEngine:
         """Yield matching species and their matching symbol in priority order."""
         for candidate in AdaptationRules.select_species_for_symbol(player, drawn_symbol):
             candidate_symbol = next(
-                (
-                    symbol
-                    for symbol in candidate.solo_symbols
-                    if symbol.symbol == drawn_symbol
-                ),
+                (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
                 None,
             )
 
@@ -302,14 +297,10 @@ class GameEngine:
         # Starting with first player, players will alternate feeding turns.
         # The feeding phase continues until no species is hungry.
         hungry_populations_left = any(
-            species.is_hungry
-            for player in self.state.players
-            for species in player.species
+            species.is_hungry for player in self.state.players for species in player.species
         )
 
-        while hungry_populations_left and any(
-            not player.passing for player in self.state.players
-        ):
+        while hungry_populations_left and any(not player.passing for player in self.state.players):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -342,9 +333,7 @@ class GameEngine:
                         < self.food_taken_in_one_forage(species, available_food)
                         and active_player.hand
                     ):
-                        ActionApplier.discard_card_for_watering_hole(
-                            self.state, active_player
-                        )
+                        ActionApplier.discard_card_for_watering_hole(self.state, active_player)
 
                     FeedingRules.forage(self.state, species)
                     fed_species_this_turn = True
@@ -374,9 +363,7 @@ class GameEngine:
         """Return hungry foragers by food yield, followed by hunters oldest-first."""
         available_food: int = self.get_available_food(active_player)
         # Filter out fully-fed species
-        hungry_species = [
-            species for species in active_player.species if species.is_hungry
-        ]
+        hungry_species = [species for species in active_player.species if species.is_hungry]
         # Sort foragers first, by food taken in one forage, then by age
         foragers = [
             (index, species, self.food_taken_in_one_forage(species, available_food))
@@ -400,9 +387,7 @@ class GameEngine:
         """Choose a species to starve one population"""
         # Starve the oldest hunter first
         hunters = [
-            species
-            for species in active_player.species
-            if species.is_hungry and species.is_hunter
+            species for species in active_player.species if species.is_hungry and species.is_hunter
         ]
         # Then foragers that didn't feed yet.
         # Lowest population first, then oldest first
@@ -418,9 +403,7 @@ class GameEngine:
         foragers = [
             species
             for species in active_player.species
-            if species.is_hungry
-            and not species.is_hunter
-            and species not in unfed_foragers
+            if species.is_hungry and not species.is_hunter and species not in unfed_foragers
         ]
         return hunters + unfed_foragers + foragers
 
@@ -434,19 +417,35 @@ class GameEngine:
             ) % self.state.number_players
             active_player: Player = self.state.players[player_index]
             # Place food in the player's score bag
-            active_player.score += sum(
-                species.total_food for species in active_player.species
-            )
+            active_player.score += sum(species.total_food for species in active_player.species)
             active_player.passing = False
 
             for species in active_player.species:
+                # reinitialize the species' food
                 species.plant_food = 0
                 species.meat_food = 0
 
+                # if a species lost population this round
+                # switch tree color and remove a random trait
                 if species.lost_population > 0:
-                    species.switch_tree_color()
+                    self.scoring_species_modification(species)
+                    species.lost_population = 0
 
-                species.lost_population = 0
-
+                # if the next round is the last one, switch to last round tree
                 if self.state.current_round == self.state.total_rounds - 1:
                     species.last_round_tree()
+
+            # Game end bonus
+            if self.state.current_round == self.state.total_rounds:
+                active_player.score += sum(2 for species in active_player.species)
+
+    def scoring_species_modification(self, species):
+        """Switch tree color and remove a random trait if the species lost population this round."""
+        species.switch_tree_color()
+
+        if species.trait_cards:
+            removed_trait = self.rng.choice(species.trait_cards)
+            species.remove_trait_card(removed_trait)
+
+            if isinstance(removed_trait, Card):
+                self.state.nature_discard.append(removed_trait)

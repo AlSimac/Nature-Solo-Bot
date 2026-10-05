@@ -35,6 +35,19 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertEqual(card.food_value, original_food_value)
         self.assertIs(card.solo_symbol, original_solo_symbol)
 
+    def test_solo_card_goes_to_players_solo_discard_when_species_goes_extinct(self):
+        player = Player(name="Rani")
+        solo_card = SoloSpecies(name="Extinct species")
+        species = Species(solo_card=solo_card, round_created=1)
+        player.species.append(species)
+        original_deck = list(player.solo_deck)
+
+        removed = player.return_extinct_species(species)
+
+        self.assertTrue(removed)
+        self.assertEqual(player.solo_discard, [solo_card])
+        self.assertEqual(player.solo_deck, original_deck)
+
     def test_replaced_trait_card_goes_to_nature_discard(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)

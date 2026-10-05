@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
@@ -107,6 +108,25 @@ from src.nature_solo_bot.game.model.state import GamePhase
 
 
 class GameEnginePreparationTest(unittest.TestCase):
+    def test_first_player_stays_for_round_and_switches_for_next_round(self):
+        engine = GameEngine(seed=42)
+        state = engine.setup_game()
+        round_one_first_player = state.first_player_index
+
+        engine.run_preparation_phase()
+        self.assertEqual(state.first_player_index, round_one_first_player)
+
+        with patch.object(engine.rng, "shuffle", lambda cards: None):
+            engine.run_adaptation_phase()
+        self.assertEqual(state.first_player_index, round_one_first_player)
+
+        state.current_round = 2
+        engine.run_preparation_phase()
+        self.assertEqual(
+            state.first_player_index,
+            (round_one_first_player + 1) % state.number_players,
+        )
+
     def test_difficulty_controls_round_one_population_and_hand_size(self):
         engine = GameEngine(seed=42, difficulty=DIFFICULTY_EASIEST)
         state = engine.setup_game()

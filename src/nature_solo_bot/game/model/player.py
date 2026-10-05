@@ -18,7 +18,7 @@ class Player:
         self.species: list[Species] = []
         self.hand: list[Card] = []
         self.solo_deck: list[SoloSpecies] = []
-        self.solo_discard: list[SoloSpecies] | None = []
+        self.solo_discard: list[SoloSpecies] = []
         self.automaton: None = None
         self.winner: bool = False
         self.is_first_player: bool = False
@@ -94,6 +94,7 @@ class Player:
 
         self.extinct_size += species.size
         self.species.remove(species)
+        self.solo_discard.append(species.solo_species)
 
         for card in list(species.trait_cards):
             if isinstance(card, Card):
