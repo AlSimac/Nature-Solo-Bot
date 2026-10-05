@@ -1,6 +1,6 @@
 """Automaton A stub."""
 
-from nature_solo_bot.automata.base_automaton import BaseAutomaton
+from .base_automaton import BaseAutomaton
 
 
 class AutomatonA(BaseAutomaton):

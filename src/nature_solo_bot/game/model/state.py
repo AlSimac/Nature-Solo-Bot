@@ -3,9 +3,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from .solo_species import SoloSpecies
-from src.nature_solo_bot.game.model.card import Card
-from src.nature_solo_bot.game.model.player import Player
+from .card import Card
+from .player import Player
 
 
 class GamePhase(Enum):

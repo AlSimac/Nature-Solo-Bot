@@ -1,13 +1,97 @@
-from nature_solo_bot.engine.action_applier import ActionApplier
-from nature_solo_bot.game.model.player import Player
-from nature_solo_bot.game.model.species import Species
-from nature_solo_bot.game.model.state import GameState
+from random import Random
+
+from ...engine.action_applier import ActionApplier
+from ..model.player import Player
+from ..model.species import Species
+from ..model.state import GameState
 
 PLANT = "plant_food"
 MEAT = "meat_food"
 
 
 class FeedingRules:
+
+    @staticmethod
+    def take_feeding_turn(
+        state: GameState,
+        active_player: Player,
+        rng: Random,
+    ) -> None:
+        """Feed or starve one species according to the solo feeding priority."""
+        ordered_species = FeedingRules.choose_species_to_feed(state, active_player)
+        if not ordered_species:
+            active_player.passing = True
+            return
+
+        for species in ordered_species:
+            if not species.is_hunter:
+                available_food = FeedingRules.get_available_food(state, active_player)
+
+                if available_food <= 0:
+                    continue
+
+                while (
+                    state.watering_hole_plant
+                    < FeedingRules.plant_food_taken_in_one_forage(species, available_food)
+                    and active_player.hand
+                ):
+                    ActionApplier.discard_card_for_watering_hole(state, active_player, rng)
+
+                FeedingRules.forage(state, species)
+                break
+
+            if FeedingRules.hunt(state, active_player, species):
+                break
+        else:
+            starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
+            FeedingRules.starve(state, starving_species, active_player)
+
+    @staticmethod
+    def choose_species_to_feed(
+        state: GameState,
+        active_player: Player,
+    ) -> list[Species]:
+        """Return hungry foragers by food yield, followed by hunters oldest-first."""
+        available_food = FeedingRules.get_available_food(state, active_player)
+        hungry_species = [species for species in active_player.species if species.is_hungry]
+        foragers = [
+            (
+                index,
+                species,
+                FeedingRules.plant_food_taken_in_one_forage(species, available_food),
+            )
+            for index, species in enumerate(hungry_species)
+            if not species.is_hunter
+        ]
+        foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
+        hunters = [species for species in hungry_species if species.is_hunter]
+        return [species for _, species, _ in foragers] + hunters
+
+    @staticmethod
+    def get_available_food(state: GameState, active_player: Player) -> int:
+        """Calculate watering-hole food plus potential food from cards in hand."""
+        return state.watering_hole_plant + 3 * len(active_player.hand)
+
+    @staticmethod
+    def choose_species_to_starve(active_player: Player) -> list[Species]:
+        """Choose the oldest hungry hunter, then unfed and remaining foragers."""
+        hunters = [
+            species for species in active_player.species if species.is_hungry and species.is_hunter
+        ]
+        unfed_foragers = sorted(
+            [
+                species
+                for species in active_player.species
+                if species.total_food == 0 and not species.is_hunter
+            ],
+            key=lambda species: (species.population, species.round_created),
+        )
+        foragers = [
+            species
+            for species in active_player.species
+            if species.is_hungry and not species.is_hunter and species not in unfed_foragers
+        ]
+        return hunters + unfed_foragers + foragers
 
     def forage(state: GameState, forager: Species):
         """Forage feeding action"""

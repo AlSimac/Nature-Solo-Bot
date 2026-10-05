@@ -21,6 +21,14 @@ class GameEngineTest(unittest.TestCase):
             f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}"
         )
 
+    def test_run_game_sets_up_and_returns_completed_state(self):
+        engine = GameEngine(seed=42)
+
+        state = engine.run_game()
+
+        self.assertIs(engine.state, state)
+        self.assertEqual(state.current_round, state.total_rounds + 1)
+
     def test_choose_species_to_feed_excludes_fully_fed_species(self):
         engine = GameEngine(seed=42)
         state = engine.setup_game()
@@ -70,7 +78,7 @@ class GameEngineTest(unittest.TestCase):
             species[2].meat_food = 0
 
             self.assertEqual(
-                engine.take_feeding_turn(player),
+                engine.choose_species_to_feed(player),
                 [species[2], species[0], species[1]],
             )
 
@@ -88,7 +96,7 @@ class GameEngineTest(unittest.TestCase):
             species[2].plant_food = 0
             species[2].meat_food = 0
             self.assertEqual(
-                engine.take_feeding_turn(player),
+                engine.choose_species_to_feed(player),
                 [species[1], species[0], species[2]],
             )
 
@@ -96,7 +104,7 @@ class GameEngineTest(unittest.TestCase):
             species[1].is_hunter = True
             species[1].plant_food = species[1].population
             self.assertEqual(
-                engine.take_feeding_turn(player),
+                engine.choose_species_to_feed(player),
                 [species[2], species[0]],
             )
 
