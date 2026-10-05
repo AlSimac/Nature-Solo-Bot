@@ -1,6 +1,5 @@
 """Game engine stub."""
 
-
 import random
 from collections.abc import Iterator
 
@@ -25,6 +24,7 @@ from typing import TypeVar
 
 T = TypeVar("T")
 
+
 class GameEngine:
     """Runs a complete game from initialization through resolution."""
 
@@ -37,7 +37,7 @@ class GameEngine:
         self.difficulty = difficulty
         self.rng = random.Random(seed)
         self.state: GameState | None = None
-        
+
     def setup_game(self) -> GameState:
         """Set up the initial game state."""
         state = GameState(difficulty=self.difficulty)
@@ -53,7 +53,7 @@ class GameEngine:
         state.plant_per_round = state.food_card.food_value * state.number_players
         state.first_player_index = self.rng.randrange(state.number_players)
         # Adding a new species for each player at the start of the game
-        # this is before setting the current round to 1, 
+        # this is before setting the current round to 1,
         # so that the species are created with round_created = 0
         # because Solo automa starts with 2 species.
         self.add_new_species()
@@ -91,7 +91,9 @@ class GameEngine:
 
         self.state.current_phase = GamePhase.PREPARATION
         # Switch the first player to the new one
-        self.state.first_player_index = (self.state.first_player_index + 1) % self.state.number_players
+        self.state.first_player_index = (
+            self.state.first_player_index + 1
+        ) % self.state.number_players
         # Add plant food equal tothe food value of the drawn card to the watering hole
         self.state.watering_hole_plant += self.state.plant_per_round
         # Getting a new species for each player
@@ -105,14 +107,18 @@ class GameEngine:
             player = self.state.players[player_index]
 
             for _ in range(self.state.difficulty.cards_to_draw):
-                player.hand.append(self.draw_card(self.state.nature_deck, self.state.nature_discard))
+                player.hand.append(
+                    self.draw_card(self.state.nature_deck, self.state.nature_discard)
+                )
 
     def add_new_species(self):
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
-            
+            new_species = Species(
+                solo_card=solo_card, round_created=self.state.current_round
+            )
+
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
 
@@ -147,12 +153,13 @@ class GameEngine:
 
             # in last round, keep one card in hand for each forager
             if self.state.current_round == self.state.total_rounds:
-                num_foragers = sum(1 for species in player.species if not species.is_hunter)
-                
+                num_foragers = sum(
+                    1 for species in player.species if not species.is_hunter
+                )
+
                 for _ in range(num_foragers):
                     card: TraitCard = player.hand.pop(0)
                     temporary_hand.append(card)
-
 
             # Draw cards one by one, and check the symbol
             while player.hand:
@@ -164,29 +171,40 @@ class GameEngine:
             # to increase size then population
             if player.species and all(species.is_hunter for species in player.species):
                 while player.hand:
-                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.SIZE)
-                
+                    self.assign_leftover_cards_to_hunters(
+                        player, temporary_hand, SymbolIncrease.SIZE
+                    )
+
                 self.refresh_player_hand(player, temporary_hand)
 
                 while player.hand:
-                    self.assign_leftover_cards_to_hunters(player, temporary_hand, SymbolIncrease.POPULATION)
-                
+                    self.assign_leftover_cards_to_hunters(
+                        player, temporary_hand, SymbolIncrease.POPULATION
+                    )
+
                 self.refresh_player_hand(player, temporary_hand)
 
     def refresh_player_hand(self, player, temporary_hand):
         player.hand.extend(temporary_hand)
         temporary_hand.clear()
-        self.rng.shuffle(player.hand)               
+        self.rng.shuffle(player.hand)
 
-    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
+    def assign_card_to_correct_candidate(
+        self, player: Player, temporary_hand: list[TraitCard]
+    ):
         """Assign a card to its highest-priority matching species."""
         picked_card: TraitCard = player.hand.pop(0)
         is_assigned = False
         drawn_symbol = picked_card.solo_symbol
 
-        for candidate, candidate_symbol in self._candidate_symbols_for(player, drawn_symbol):
+        for candidate, candidate_symbol in self._candidate_symbols_for(
+            player, drawn_symbol
+        ):
             traits_before_assignment = len(candidate.trait_cards)
-            if candidate_symbol.increase in (SymbolIncrease.SIZE, SymbolIncrease.POPULATION):
+            if candidate_symbol.increase in (
+                SymbolIncrease.SIZE,
+                SymbolIncrease.POPULATION,
+            ):
                 candidate_assigned = self._apply_species_increase(
                     candidate,
                     picked_card,
@@ -232,7 +250,11 @@ class GameEngine:
         """Yield matching species and their matching symbol in priority order."""
         for candidate in AdaptationRules.select_species_for_symbol(player, drawn_symbol):
             candidate_symbol = next(
-                (symbol for symbol in candidate.solo_symbols if symbol.symbol == drawn_symbol),
+                (
+                    symbol
+                    for symbol in candidate.solo_symbols
+                    if symbol.symbol == drawn_symbol
+                ),
                 None,
             )
 
@@ -249,7 +271,7 @@ class GameEngine:
         if increase == SymbolIncrease.SIZE:
             if candidate.size >= self.state.max_size:
                 return False
-            
+
             candidate.size += 1
 
         elif increase == SymbolIncrease.POPULATION:
@@ -261,7 +283,9 @@ class GameEngine:
         self.state.nature_discard.append(picked_card)
         return True
 
-    def assign_leftover_cards_to_hunters(self, player: Player, temporary_hand: list[TraitCard], increase: SymbolIncrease):
+    def assign_leftover_cards_to_hunters(
+        self, player: Player, temporary_hand: list[TraitCard], increase: SymbolIncrease
+    ):
         """Use a leftover card to increase size or population for a hunter."""
         picked_card: TraitCard = player.hand.pop(0)
         drawn_symbol = picked_card.solo_symbol
@@ -283,7 +307,9 @@ class GameEngine:
             for species in player.species
         )
 
-        while hungry_populations_left and any(not player.passing for player in self.state.players):
+        while hungry_populations_left and any(
+            not player.passing for player in self.state.players
+        ):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -294,7 +320,7 @@ class GameEngine:
                     self.take_feeding_turn(active_player)
 
     def take_feeding_turn(self, active_player: Player):
-        """ Main method for the feeding turns"""
+        """Main method for the feeding turns"""
         ordered_species = self.choose_species_to_feed(active_player)
         fed_species_this_turn = False
 
@@ -311,9 +337,15 @@ class GameEngine:
                 if available_food > 0:
                     # Discard cards to add plant food to watering hole until there is enough to feed the species
                     # or until the player runs out of cards in hand
-                    while self.state.watering_hole_plant < self.food_taken_in_one_forage(species, available_food) and active_player.hand:
-                        ActionApplier.discard_card_for_watering_hole(self.state, active_player)
-                
+                    while (
+                        self.state.watering_hole_plant
+                        < self.food_taken_in_one_forage(species, available_food)
+                        and active_player.hand
+                    ):
+                        ActionApplier.discard_card_for_watering_hole(
+                            self.state, active_player
+                        )
+
                     FeedingRules.forage(self.state, species)
                     fed_species_this_turn = True
                     break
@@ -338,15 +370,12 @@ class GameEngine:
             starving_species = self.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(self.state, starving_species, active_player)
 
-
     def choose_species_to_feed(self, active_player: Player) -> list[Species]:
         """Return hungry foragers by food yield, followed by hunters oldest-first."""
         available_food: int = self.get_available_food(active_player)
         # Filter out fully-fed species
         hungry_species = [
-            species
-            for species in active_player.species
-            if species.is_hungry
+            species for species in active_player.species if species.is_hungry
         ]
         # Sort foragers first, by food taken in one forage, then by age
         foragers = [
@@ -356,23 +385,19 @@ class GameEngine:
         ]
         foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
         # Sort the hunters by age
-        hunters = [
-            species
-            for species in hungry_species
-            if species.is_hunter
-        ]
+        hunters = [species for species in hungry_species if species.is_hunter]
         return [species for _, species, _ in foragers] + hunters
 
     def food_taken_in_one_forage(self, species: Species, available_food: int):
         return FeedingRules.plant_food_taken_in_one_forage(species, available_food)
 
     def get_available_food(self, active_player):
-        """ Calculate the amount of food in WH + 3 per cards in hands"""
+        """Calculate the amount of food in WH + 3 per cards in hands"""
         available_food = self.state.watering_hole_plant + 3 * len(active_player.hand)
         return available_food
 
     def choose_species_to_starve(self, active_player: Player):
-        """ Choose a species to starve one population"""
+        """Choose a species to starve one population"""
         # Starve the oldest hunter first
         hunters = [
             species
@@ -393,10 +418,12 @@ class GameEngine:
         foragers = [
             species
             for species in active_player.species
-            if species.is_hungry and not species.is_hunter and species not in unfed_foragers
+            if species.is_hungry
+            and not species.is_hunter
+            and species not in unfed_foragers
         ]
         return hunters + unfed_foragers + foragers
-        
+
     def run_scoring_phase(self):
         """Run the scoring phase of the game."""
         self.state.current_phase = GamePhase.SCORING
@@ -407,9 +434,11 @@ class GameEngine:
             ) % self.state.number_players
             active_player: Player = self.state.players[player_index]
             # Place food in the player's score bag
-            active_player.score += sum(species.total_food for species in active_player.species)
+            active_player.score += sum(
+                species.total_food for species in active_player.species
+            )
             active_player.passing = False
-            
+
             for species in active_player.species:
                 species.plant_food = 0
                 species.meat_food = 0

@@ -79,7 +79,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         species = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.append(species)
         cards = Card.init_nature_deck()[:3]
-        
+
         for card in cards:
             player.hand.append(card)
             self.assertTrue(player.play_trait_card(card, species, max_traits=3))

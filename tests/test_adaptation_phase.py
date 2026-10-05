@@ -89,10 +89,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         state.players = [rani, radwin]
         engine.state = state
 
-        cards = [
-            Card("Fast", 1, FAST, SymbolName.GEAR, "Nature")
-            for _ in range(13)
-        ]
+        cards = [Card("Fast", 1, FAST, SymbolName.GEAR, "Nature") for _ in range(13)]
         card_index = 0
         for player in state.players:
             for species_index in range(2):
@@ -130,7 +127,9 @@ class AdaptationPhaseTest(unittest.TestCase):
         self.assertEqual(len(radwin.species), 2)
         return engine, state, rani
 
-    def test_all_rani_species_start_as_hunters_and_size_increases_precede_population(self):
+    def test_all_rani_species_start_as_hunters_and_size_increases_precede_population(
+        self,
+    ):
         engine, state, rani = self._create_two_species_hunter_scenario((1, 4))
 
         self.assertTrue(all(species.is_hunter for species in rani.species))
@@ -222,7 +221,9 @@ class AdaptationPhaseTest(unittest.TestCase):
         for player in state.players:
             self.assertEqual(len(player.hand), 7)
             self.assertEqual([species.size for species in player.species], [1, 3, 4])
-            self.assertEqual([species.population for species in player.species], [3, 3, 3])
+            self.assertEqual(
+                [species.population for species in player.species], [3, 3, 3]
+            )
 
         print("\nHands at the beginning of round-two adaptation:")
         for player in state.players:
@@ -274,7 +275,9 @@ class AdaptationPhaseTest(unittest.TestCase):
                 changes = []
                 for species, (size, population, _, was_hunter) in before.items():
                     if species.size != size:
-                        changes.append(f"{species.solo_species.name} size {size}->{species.size}")
+                        changes.append(
+                            f"{species.solo_species.name} size {size}->{species.size}"
+                        )
                     if species.population != population:
                         changes.append(
                             f"{species.solo_species.name} population {population}->{species.population}"
@@ -289,7 +292,11 @@ class AdaptationPhaseTest(unittest.TestCase):
                     ),
                     None,
                 )
-                if card not in discarded_before and card in state.nature_discard and hunter_target:
+                if (
+                    card not in discarded_before
+                    and card in state.nature_discard
+                    and hunter_target
+                ):
                     outcome = (
                         f"trait -> {hunter_target.solo_species.name} "
                         "(replaced by Hunter)"
@@ -297,9 +304,7 @@ class AdaptationPhaseTest(unittest.TestCase):
                 else:
                     outcome = "; ".join(changes) or "unassigned; returned to hand"
 
-            print(
-                f"  {player.name}: {card.name} ({card.solo_symbol.value}) -> {outcome}"
-            )
+            print(f"  {player.name}: {card.name} ({card.solo_symbol.value}) -> {outcome}")
 
         engine.assign_card_to_correct_candidate = trace_assignment
         print("\nCard-by-card adaptation assignments:")
@@ -339,8 +344,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         )
         player.species.extend([full_species, next_species])
         card = next(
-            card for card in Card.init_nature_deck()
-            if card.solo_symbol == SymbolName.CAT
+            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
         )
         player.hand.append(card)
         temporary_hand: list = []
@@ -369,9 +373,9 @@ class AdaptationPhaseTest(unittest.TestCase):
         incoming_card = next(
             card for card in nature_cards if card.solo_symbol == SymbolName.GEAR
         )
-        existing_cards = [
-            card for card in nature_cards if card is not incoming_card
-        ][:state.max_traits]
+        existing_cards = [card for card in nature_cards if card is not incoming_card][
+            : state.max_traits
+        ]
         for card in existing_cards:
             self.assertTrue(species.add_trait_card(card, max_traits=state.max_traits))
         player.species.append(species)
@@ -403,8 +407,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         )
         player.species.append(species)
         card = next(
-            card for card in Card.init_nature_deck()
-            if card.solo_symbol == SymbolName.CAT
+            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
         )
         player.hand.append(card)
 

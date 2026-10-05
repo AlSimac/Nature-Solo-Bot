@@ -27,7 +27,3 @@ class SoloSpecies:
         self.pink_symbols_last_round = pink_symbols_last_round or []
         self.blue_symbols = blue_symbols or []
         self.blue_symbols_last_round = blue_symbols_last_round or []
-
-    
-
-    

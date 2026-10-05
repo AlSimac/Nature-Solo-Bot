@@ -3,41 +3,51 @@ from nature_solo_bot.game.model.player import Player
 from nature_solo_bot.game.model.species import Species
 from nature_solo_bot.game.model.state import GameState
 
-
 PLANT = "plant_food"
 MEAT = "meat_food"
 
 
 class FeedingRules:
 
-
     def forage(state: GameState, forager: Species):
-        """ Forage feeding action"""
-        plant_food_taken = FeedingRules.plant_food_taken_in_one_forage(forager, state.watering_hole_plant)
+        """Forage feeding action"""
+        plant_food_taken = FeedingRules.plant_food_taken_in_one_forage(
+            forager, state.watering_hole_plant
+        )
         state.watering_hole_plant -= plant_food_taken
         FeedingRules.eat(forager, PLANT, plant_food_taken)
-    
+
     def hunt(state: GameState, player: Player, hunter: Species):
-        """ Hunt feeding action"""
+        """Hunt feeding action"""
         # Find valid targets and calculate losses
         possible_preys = FeedingRules.find_valid_targets(state, hunter)
 
         if not possible_preys:
             return False
-        
-        least_dangerous_preys = FeedingRules.count_own_losses(state, hunter, possible_preys, player)
+
+        least_dangerous_preys = FeedingRules.count_own_losses(
+            state, hunter, possible_preys, player
+        )
         chosen_prey, _ = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
         prey_owner = next(
-            (candidate for candidate in state.players if chosen_prey in candidate.species),
+            (
+                candidate
+                for candidate in state.players
+                if chosen_prey in candidate.species
+            ),
             None,
         )
         if prey_owner is None:
-            raise ValueError("The selected prey does not belong to a player in the game state.")
+            raise ValueError(
+                "The selected prey does not belong to a player in the game state."
+            )
 
         hunter_loss = FeedingRules.hunter_loss_caused_by_prey(chosen_prey, hunter)
 
         # Actual hunt action
-        FeedingRules.eat(hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food)))        
+        FeedingRules.eat(
+            hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food))
+        )
         ActionApplier.kill_one_population(state, chosen_prey, prey_owner)
 
         if hunter_loss > 0:
@@ -51,7 +61,7 @@ class FeedingRules:
         return 0
 
     def eat(species: Species, food_type: str, food_taken: int):
-        """ Define the eat action"""
+        """Define the eat action"""
         if food_type == PLANT:
             species.plant_food += food_taken
 
@@ -59,7 +69,7 @@ class FeedingRules:
             species.meat_food += food_taken
 
     def starve(state: GameState, species: Species, player: Player):
-        """ Define the starve action"""
+        """Define the starve action"""
         ActionApplier.kill_one_population(state, species, player)
 
     @staticmethod
@@ -72,7 +82,7 @@ class FeedingRules:
 
     @staticmethod
     def find_valid_targets(state: GameState, hunter: Species) -> list[Species]:
-        """ Find all possible prey for this hunter"""
+        """Find all possible prey for this hunter"""
         valid_targets = []
 
         for player in state.players:
@@ -89,7 +99,7 @@ class FeedingRules:
         possible_preys: list[Species],
         player: Player,
     ) -> list[tuple[Species, int]]:
-        """ Sort the species by number of hunter's population losses"""
+        """Sort the species by number of hunter's population losses"""
         loss_per_prey = {}
 
         for prey in possible_preys:

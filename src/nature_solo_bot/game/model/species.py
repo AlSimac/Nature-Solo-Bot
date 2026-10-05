@@ -5,11 +5,13 @@ from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_cards import HUNTER
 
+
 class TreeColor(Enum):
     PINK = 0
     BLUE = 1
     PINK_LAST_ROUND = 2
     BLUE_LAST_ROUND = 3
+
 
 class Species:
     """Represents a species in the game."""
@@ -86,8 +88,7 @@ class Species:
 
     def _refresh_hunter_status(self) -> None:
         self.is_hunter = any(
-            card.trait.effect_id == HUNTER.effect_id
-            for card in self.trait_cards
+            card.trait.effect_id == HUNTER.effect_id for card in self.trait_cards
         )
 
     def switch_tree_color(self):
@@ -109,7 +110,7 @@ class Species:
             self.solo_symbols = self.solo_species.pink_symbols
 
     def last_round_tree(self):
-        """ Switch to the last round tree of the same color"""
+        """Switch to the last round tree of the same color"""
         if self.tree_color == TreeColor.PINK:
             self.tree_color = TreeColor.PINK_LAST_ROUND
             self.solo_symbols = self.solo_species.pink_symbols_last_round
@@ -117,4 +118,3 @@ class Species:
         elif self.tree_color == TreeColor.BLUE:
             self.tree_color = TreeColor.BLUE_LAST_ROUND
             self.solo_symbols = self.solo_species.blue_symbols_last_round
-            

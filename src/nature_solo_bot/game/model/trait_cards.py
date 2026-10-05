@@ -51,13 +51,4 @@ AVID_FORAGER = Trait(
     name="Avid Forager",
     effect_id="avid_forager",
 )
-NATURE_TRAITS = [
-    CLAWED,
-    FAST,
-    HORNED,
-    OPPORTUNISTIC,
-    PLATED,
-    SCAVENGING,
-    SOCIAL,
-    TUSKED
-]
+NATURE_TRAITS = [CLAWED, FAST, HORNED, OPPORTUNISTIC, PLATED, SCAVENGING, SOCIAL, TUSKED]

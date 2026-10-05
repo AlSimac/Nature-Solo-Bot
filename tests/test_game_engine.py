@@ -16,7 +16,9 @@ class GameEngineTest(unittest.TestCase):
         self.assertGreater(state.plant_per_round, 0)
         self.assertNotIn(state.food_card, state.nature_deck)
         self.assertIn(state.first_player_index, range(state.number_players))
-        print(f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}")
+        print(
+            f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}"
+        )
 
     def test_choose_species_to_feed_excludes_fully_fed_species(self):
         engine = GameEngine(seed=42)
@@ -97,6 +99,7 @@ class GameEngineTest(unittest.TestCase):
                 [species[2], species[0]],
             )
 
+
 import unittest
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
@@ -143,6 +146,7 @@ class GameEnginePreparationTest(unittest.TestCase):
         print("\nFirst 10 cards remaining in the Nature deck:")
         for card in state.nature_deck[-10:]:
             print(f"  {card.name}: food value {card.food_value}")
+
 
 if __name__ == "__main__":
     unittest.main()

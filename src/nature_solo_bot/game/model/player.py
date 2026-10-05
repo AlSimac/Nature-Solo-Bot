@@ -1,6 +1,5 @@
 """Player model for a Nature-like board game."""
 
-
 from .solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
@@ -28,7 +27,6 @@ class Player:
         self.lost_population: int = 0
         self.extinct_size: int = 0
         self.passing: bool = False
-        
 
     def init_two_players() -> list["Player"]:
         """Initialize two players for the game."""
@@ -79,10 +77,10 @@ class Player:
     ) -> None:
         if isinstance(card, HunterCard):
             return
-        
+
         elif isinstance(card, Card):
             nature_discard.append(card)
-            
+
         else:
             raise TypeError(f"Unsupported trait card type: {type(card).__name__}")
 

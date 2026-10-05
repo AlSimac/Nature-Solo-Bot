@@ -12,7 +12,6 @@ from .trait_cards import (
     TUSKED,
 )
 
-
 SYMBOL_BY_TRAIT_AND_FOOD: dict[tuple[Trait, int], SymbolName] = {
     (CLAWED, 1): SymbolName.SEEDLING,
     (CLAWED, 2): SymbolName.GEAR,

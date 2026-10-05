@@ -1,6 +1,5 @@
 """Card model stub."""
 
-
 from .solo_cards import NATURE_SOLO_CARDS
 from .solo_species import SoloSpecies
 from .nature_symbols import SYMBOL_BY_TRAIT_AND_FOOD
@@ -12,6 +11,7 @@ from . import trait
 
 class Card(TraitCard):
     """Represents a card in the game."""
+
     NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
 
     def __init__(
@@ -58,8 +58,6 @@ class Card(TraitCard):
         cards_in_deck = []
 
         for solo_card in NATURE_SOLO_CARDS:
-            cards_in_deck.extend(
-                SoloSpecies() for _ in range(len(NATURE_SOLO_CARDS))
-            )
+            cards_in_deck.extend(SoloSpecies() for _ in range(len(NATURE_SOLO_CARDS)))
 
         return cards_in_deck
