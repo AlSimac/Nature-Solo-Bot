@@ -3,10 +3,18 @@ from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
+from src.nature_solo_bot.game.model.trait_cards import HUNTER
 
 
 class GameEngineTest(unittest.TestCase):
+    @staticmethod
+    def _remove_hunter_trait(species):
+        for card in list(species.trait_cards):
+            if card.trait is HUNTER:
+                species.remove_trait_card(card)
+
     def test_initialize_game(self):
         engine = GameEngine(seed=42)
 
@@ -51,13 +59,13 @@ class GameEngineTest(unittest.TestCase):
         player = state.players[0]
         for species in player.species:
             species.plant_food = species.population
-            species.is_hunter = False
+            self._remove_hunter_trait(species)
 
         hungry_forager = player.species[0]
         hungry_forager.plant_food = 0
         hungry_forager.meat_food = 0
         fully_fed_hunter = player.species[1]
-        fully_fed_hunter.is_hunter = True
+        fully_fed_hunter.add_trait_card(HunterCard(), max_traits=state.max_traits)
 
         self.assertEqual(
             engine.choose_species_to_feed(player),
@@ -76,7 +84,7 @@ class GameEngineTest(unittest.TestCase):
             player.hand = [state.nature_deck[0]]
             species = player.species
             for candidate in species:
-                candidate.is_hunter = False
+                self._remove_hunter_trait(candidate)
 
             species[0].size = 5
             species[0].population = 4
@@ -114,8 +122,8 @@ class GameEngineTest(unittest.TestCase):
                 [species[1], species[0], species[2]],
             )
 
-            species[0].is_hunter = True
-            species[1].is_hunter = True
+            species[0].add_trait_card(HunterCard(), max_traits=state.max_traits)
+            species[1].add_trait_card(HunterCard(), max_traits=state.max_traits)
             species[1].plant_food = species[1].population
             self.assertEqual(
                 engine.choose_species_to_feed(player),

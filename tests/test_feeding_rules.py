@@ -2,21 +2,41 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
+from src.nature_solo_bot.game.model.trait_card import TraitCard
+from src.nature_solo_bot.game.model.trait_cards import CLAWED, PLATED
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_hunt_targets_use_trait_adjusted_attack_and_defense_values(self):
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.size = 2
+        prey.size = 3
+        hunter.add_trait_card(TraitCard(CLAWED), max_traits=3)
+        prey.add_trait_card(TraitCard(PLATED), max_traits=3)
+        state = GameState()
+        state.players = [Player(name="Hunter owner"), Player(name="Prey owner")]
+        state.players[0].species.append(hunter)
+        state.players[1].species.append(prey)
+
+        self.assertEqual(FeedingRules.find_valid_targets(state, hunter), [])
+
+        prey.remove_trait_card(prey.trait_cards[0])
+        self.assertEqual(FeedingRules.find_valid_targets(state, hunter), [prey])
+
     def test_hunting_own_prey_does_not_kill_hunter_population(self):
         player = Player(name="Hunter owner")
         prey = Species(solo_card=SoloSpecies(), round_created=1)
         hunter = Species(solo_card=SoloSpecies(), round_created=1)
         hunter.size = 2
         hunter.population = 2
-        hunter.is_hunter = True
+        hunter.add_trait_card(HunterCard(), max_traits=3)
         player.species.extend([prey, hunter])
         state = GameState()
         state.players = [player]
@@ -36,7 +56,7 @@ class FeedingRulesTest(unittest.TestCase):
         hunter = Species(solo_card=SoloSpecies(), round_created=1)
         hunter.size = 2
         hunter.population = 1
-        hunter.is_hunter = True
+        hunter.add_trait_card(HunterCard(), max_traits=3)
         prey_owner.species.append(prey)
         hunter_owner.species.append(hunter)
         state = GameState()

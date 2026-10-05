@@ -6,8 +6,8 @@ from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.state import GameState
-from src.nature_solo_bot.game.model.trait_cards import HUNTER
+from src.nature_solo_bot.game.model.trait import Trait
+from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 
 
@@ -87,6 +87,42 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertFalse(species.is_hunter)
         self.assertEqual(player.hand, [])
 
+    def test_removing_hunter_trait_turns_species_back_into_forager(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter_card = HunterCard()
+        species.add_trait_card(hunter_card, max_traits=3)
+        self.assertTrue(species.is_hunter)
+
+        self.assertTrue(species.remove_trait_card(hunter_card))
+
+        self.assertFalse(species.is_hunter)
+
+    def test_replacing_hunter_trait_with_another_trait_turns_species_into_forager(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter_card = HunterCard()
+        other_card = Card.init_nature_deck()[0]
+        species.add_trait_card(hunter_card, max_traits=3)
+        self.assertTrue(species.is_hunter)
+
+        self.assertTrue(
+            species.replace_trait_card(
+                hunter_card,
+                other_card,
+                max_traits=3,
+            )
+        )
+
+        self.assertFalse(species.is_hunter)
+
+    def test_trait_without_effect_id_does_not_make_species_a_hunter(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+
+        self.assertTrue(
+            species.add_trait_card(TraitCard(Trait(name="Unidentified")), max_traits=3)
+        )
+
+        self.assertFalse(species.is_hunter)
+
     def test_hunter_effect_does_not_replace_traits_when_species_is_full(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
@@ -104,7 +140,6 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             max_traits=3,
             nature_discard=nature_discard,
             rng=random.Random(42),
-            state=GameState(),
         )
 
         self.assertFalse(added)

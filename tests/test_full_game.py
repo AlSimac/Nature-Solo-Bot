@@ -46,6 +46,7 @@ class FullGameLog:
         return (
             f"{self.species_id(species)} {species.solo_species.name} "
             f"(tree={species.tree_color.name}, size={species.size}, "
+            f"attack={species.attack_value}, defense={species.defense_value}, "
             f"population={species.population}, traits=[{traits}], "
             f"plant food={species.plant_food}, meat food={species.meat_food})"
         )
@@ -90,7 +91,7 @@ class FullGameLog:
 
 class FullGameTest(unittest.TestCase):
     def test_complete_game_writes_detailed_log(self):
-        seed = 1
+        seed = 0
         engine = GameEngine(seed=seed, difficulty=DIFFICULTY_MEDIUM)
         state = engine.setup_game()
         trace = FullGameLog()
@@ -366,6 +367,8 @@ class FullGameTest(unittest.TestCase):
         self.assertIn("First player:", log_text)
         self.assertIn("hand=[", log_text)
         self.assertIn("size=", log_text)
+        self.assertIn("attack=", log_text)
+        self.assertIn("defense=", log_text)
         self.assertIn("population=", log_text)
         self.assertNotIn("Solo Species", log_text)
         self.assertIn("Species at the end of adaptation:", log_text)

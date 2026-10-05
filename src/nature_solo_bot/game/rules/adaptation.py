@@ -93,7 +93,6 @@ class AdaptationRules:
                     max_traits=state.max_traits,
                     nature_discard=state.nature_discard,
                     rng=rng,
-                    state=state,
                     replace_random_trait=True,
                 )
 

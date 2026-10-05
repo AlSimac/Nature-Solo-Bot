@@ -6,7 +6,6 @@ from ..model.species import Species
 from ..model.solo_species import SoloEffect
 from ..model.hunter_card import HunterCard
 from ..model.trait_card import TraitCard
-from .trait_effects import TraitEffectRules
 from ..model.state import GameState
 
 
@@ -61,7 +60,6 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
-                state=state,
             )
 
     @staticmethod
@@ -85,7 +83,6 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
-                state=state,
             )
 
     @staticmethod
@@ -96,7 +93,6 @@ class PreparationRules:
         max_traits: int,
         nature_discard: list[Card],
         rng: Random,
-        state: GameState,
         replace_random_trait: bool = False,
     ) -> bool:
         is_full = len(species.trait_cards) >= max_traits
@@ -121,8 +117,5 @@ class PreparationRules:
 
         else:
             return False
-
-        if attached:
-            TraitEffectRules.on_attach(species, hunter_card.trait, state)
 
         return attached
