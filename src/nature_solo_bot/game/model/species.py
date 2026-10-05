@@ -5,9 +5,13 @@ from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_cards import HUNTER
 
+
 class TreeColor(Enum):
     PINK = 0
     BLUE = 1
+    PINK_LAST_ROUND = 2
+    BLUE_LAST_ROUND = 3
+
 
 class Species:
     """Represents a species in the game."""
@@ -20,9 +24,31 @@ class Species:
         self.population: int = 1
         self.size: int = 1
         self.is_hunter: bool = False
-        self.food: int = 0
+        self.plant_food: int = 0
+        self.meat_food: int = 0
         self.tree_color = TreeColor.PINK
         self.solo_symbols = solo_card.pink_symbols
+        self.lost_population: int = 0
+
+    @property
+    def attack_value(self) -> int:
+        return self.size
+
+    @property
+    def defense_value(self) -> int:
+        return self.size
+
+    @property
+    def forage_value(self) -> int:
+        return self.size
+
+    @property
+    def total_food(self) -> int:
+        return self.plant_food + self.meat_food
+
+    @property
+    def is_hungry(self) -> bool:
+        return self.total_food < self.population
 
     @property
     def traits(self) -> list[Trait]:
@@ -62,6 +88,33 @@ class Species:
 
     def _refresh_hunter_status(self) -> None:
         self.is_hunter = any(
-            card.trait.effect_id == HUNTER.effect_id
-            for card in self.trait_cards
+            card.trait.effect_id == HUNTER.effect_id for card in self.trait_cards
         )
+
+    def switch_tree_color(self):
+        """Switch the tree color of the species."""
+        if self.tree_color == TreeColor.PINK:
+            self.tree_color = TreeColor.BLUE
+            self.solo_symbols = self.solo_species.blue_symbols
+
+        elif self.tree_color == TreeColor.BLUE:
+            self.tree_color = TreeColor.PINK
+            self.solo_symbols = self.solo_species.pink_symbols
+
+        elif self.tree_color == TreeColor.PINK_LAST_ROUND:
+            self.tree_color = TreeColor.BLUE_LAST_ROUND
+            self.solo_symbols = self.solo_species.blue_symbols
+
+        elif self.tree_color == TreeColor.BLUE_LAST_ROUND:
+            self.tree_color = TreeColor.PINK_LAST_ROUND
+            self.solo_symbols = self.solo_species.pink_symbols
+
+    def last_round_tree(self):
+        """Switch to the last round tree of the same color"""
+        if self.tree_color == TreeColor.PINK:
+            self.tree_color = TreeColor.PINK_LAST_ROUND
+            self.solo_symbols = self.solo_species.pink_symbols_last_round
+
+        elif self.tree_color == TreeColor.BLUE:
+            self.tree_color = TreeColor.BLUE_LAST_ROUND
+            self.solo_symbols = self.solo_species.blue_symbols_last_round

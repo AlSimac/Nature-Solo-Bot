@@ -5,6 +5,7 @@ from ..model.player import Player
 from ..model.species import Species
 from ..model.solo_species import SoloEffect
 from ..model.hunter_card import HunterCard
+from ..model.trait_card import TraitCard
 from .trait_effects import TraitEffectRules
 from ..model.state import GameState
 
@@ -96,15 +97,19 @@ class PreparationRules:
         nature_discard: list[Card],
         rng: Random,
         state: GameState,
+        replace_random_trait: bool = False,
     ) -> bool:
         is_full = len(species.trait_cards) >= max_traits
+
         if is_full and not species.trait_cards:
             return False
 
         hunter_card = HunterCard()
+
         if not is_full:
             attached = species.add_trait_card(hunter_card, max_traits=max_traits)
-        else:
+
+        elif replace_random_trait and species.trait_cards:
             replacement_card = rng.choice(species.trait_cards)
             attached = player.replace_trait_card(
                 species,
@@ -114,6 +119,10 @@ class PreparationRules:
                 max_traits=max_traits,
             )
 
+        else:
+            return False
+
         if attached:
             TraitEffectRules.on_attach(species, hunter_card.trait, state)
+
         return attached

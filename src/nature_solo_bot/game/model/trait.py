@@ -29,5 +29,3 @@ class Trait:
         self.attack_modifier = attack_modifier
         self.defense_modifier = defense_modifier
         self.effects = effects
-
-

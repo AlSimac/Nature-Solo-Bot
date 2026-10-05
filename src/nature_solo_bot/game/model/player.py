@@ -1,6 +1,5 @@
 """Player model for a Nature-like board game."""
 
-
 from .solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
@@ -19,13 +18,15 @@ class Player:
         self.species: list[Species] = []
         self.hand: list[Card] = []
         self.solo_deck: list[SoloSpecies] = []
-        self.solo_discard: list[SoloSpecies] | None = []
+        self.solo_discard: list[SoloSpecies] = []
         self.automaton: None = None
         self.winner: bool = False
         self.is_first_player: bool = False
         self.is_active: bool = False
         self.metadata: dict = {}
-        
+        self.lost_population: int = 0
+        self.extinct_size: int = 0
+        self.passing: bool = False
 
     def init_two_players() -> list["Player"]:
         """Initialize two players for the game."""
@@ -76,8 +77,10 @@ class Player:
     ) -> None:
         if isinstance(card, HunterCard):
             return
+
         elif isinstance(card, Card):
             nature_discard.append(card)
+
         else:
             raise TypeError(f"Unsupported trait card type: {type(card).__name__}")
 
@@ -89,11 +92,17 @@ class Player:
         if species not in self.species:
             return False
 
+        self.extinct_size += species.size
         self.species.remove(species)
+        self.solo_discard.append(species.solo_species)
+
         for card in list(species.trait_cards):
             if isinstance(card, Card):
                 self.hand.append(card)
+
             else:
                 self._return_trait_card(card, [])
+
             species.remove_trait_card(card)
+
         return True

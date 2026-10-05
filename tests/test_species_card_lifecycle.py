@@ -35,6 +35,19 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertEqual(card.food_value, original_food_value)
         self.assertIs(card.solo_symbol, original_solo_symbol)
 
+    def test_solo_card_goes_to_players_solo_discard_when_species_goes_extinct(self):
+        player = Player(name="Rani")
+        solo_card = SoloSpecies(name="Extinct species")
+        species = Species(solo_card=solo_card, round_created=1)
+        player.species.append(species)
+        original_deck = list(player.solo_deck)
+
+        removed = player.return_extinct_species(species)
+
+        self.assertTrue(removed)
+        self.assertEqual(player.solo_discard, [solo_card])
+        self.assertEqual(player.solo_deck, original_deck)
+
     def test_replaced_trait_card_goes_to_nature_discard(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
@@ -74,19 +87,18 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertFalse(species.is_hunter)
         self.assertEqual(player.hand, [])
 
-    def test_effect_replaces_a_seeded_random_trait_card(self):
+    def test_hunter_effect_does_not_replace_traits_when_species_is_full(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.append(species)
         cards = Card.init_nature_deck()[:3]
-        
+
         for card in cards:
             player.hand.append(card)
             self.assertTrue(player.play_trait_card(card, species, max_traits=3))
 
-        expected_replacement = random.Random(42).choice(cards)
         nature_discard = []
-        replaced = PreparationRules.add_hunter_card(
+        added = PreparationRules.add_hunter_card(
             species,
             player,
             max_traits=3,
@@ -95,10 +107,11 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             state=GameState(),
         )
 
-        self.assertTrue(replaced)
-        self.assertIs(nature_discard[0], expected_replacement)
+        self.assertFalse(added)
+        self.assertEqual(nature_discard, [])
+        self.assertEqual(species.trait_cards, cards)
         self.assertEqual(len(species.trait_cards), 3)
-        self.assertTrue(species.is_hunter)
+        self.assertFalse(species.is_hunter)
 
 
 if __name__ == "__main__":
