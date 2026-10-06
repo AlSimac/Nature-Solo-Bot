@@ -8,11 +8,56 @@ from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import CLAWED, PLATED
+from src.nature_solo_bot.game.model.trait_cards import CLAWED, FAST, PLATED
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_clawed_increases_forage_yield_by_two_per_trait(self):
+        for clawed_count, expected_food in ((0, 2), (1, 4), (2, 6)):
+            with self.subTest(clawed_count=clawed_count):
+                forager = Species(solo_card=SoloSpecies(), round_created=1)
+                forager.size = 2
+                forager.population = 10
+                for _ in range(clawed_count):
+                    forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
+
+                self.assertEqual(
+                    FeedingRules.plant_food_taken_in_one_forage(forager, 10),
+                    expected_food,
+                )
+
+    def test_clawed_forage_is_limited_by_hunger_and_available_food(self):
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 2
+        forager.population = 5
+        forager.plant_food = 3
+        forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
+
+        self.assertEqual(
+            FeedingRules.plant_food_taken_in_one_forage(forager, 10),
+            2,
+        )
+        forager.plant_food = 0
+        self.assertEqual(
+            FeedingRules.plant_food_taken_in_one_forage(forager, 3),
+            3,
+        )
+
+    def test_fast_only_prevents_hunting_species_with_more_fast_traits(self):
+        for fast_prey_count, expected_validity in ((0, True), (1, True), (2, False)):
+            with self.subTest(fast_prey_count=fast_prey_count):
+                hunter = Species(solo_card=SoloSpecies(), round_created=1)
+                prey = Species(solo_card=SoloSpecies(), round_created=1)
+                hunter.add_trait_card(TraitCard(FAST), max_traits=3)
+                for _ in range(fast_prey_count):
+                    prey.add_trait_card(TraitCard(FAST), max_traits=3)
+
+                self.assertEqual(
+                    FeedingRules.is_valid_target(prey, hunter),
+                    expected_validity,
+                )
+
     def test_hunt_targets_use_trait_adjusted_attack_and_defense_values(self):
         hunter = Species(solo_card=SoloSpecies(), round_created=1)
         prey = Species(solo_card=SoloSpecies(), round_created=1)
