@@ -15,11 +15,122 @@ from src.nature_solo_bot.game.model.trait_cards import (
     HORNED,
     OPPORTUNISTIC,
     PLATED,
+    SCAVENGING,
 )
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_scavenging_triggers_for_both_players_after_a_successful_hunt(self):
+        hunter_player = Player(name="Hunter")
+        prey_player = Player(name="Prey")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 3
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        hunter_scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter_scavenger.population = 4
+        hunter_scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        prey_scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        prey_scavenger.size = 4
+        prey_scavenger.population = 4
+        prey_scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        hunter_player.species.extend([hunter, hunter_scavenger])
+        prey_player.species.extend([prey, prey_scavenger])
+        state = GameState()
+        state.players = [hunter_player, prey_player]
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(hunter.meat_food, 1)
+        self.assertEqual(hunter_scavenger.meat_food, 2)
+        self.assertEqual(prey_scavenger.meat_food, 2)
+        self.assertEqual(prey.population, 1)
+
+    def test_each_scavenging_copy_triggers_independently(self):
+        hunter_player = Player(name="Hunter")
+        prey_player = Player(name="Prey")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 3
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        scavenger.population = 10
+        for _ in range(2):
+            scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        hunter_player.species.extend([hunter, scavenger])
+        prey_player.species.append(prey)
+        state = GameState()
+        state.players = [hunter_player, prey_player]
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(scavenger.meat_food, 4)
+
+    def test_scavenging_food_does_not_exceed_hungry_population(self):
+        hunter_player = Player(name="Hunter")
+        prey_player = Player(name="Prey")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 3
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        scavenger.population = 3
+        scavenger.meat_food = 2
+        scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        hunter_player.species.extend([hunter, scavenger])
+        prey_player.species.append(prey)
+        state = GameState()
+        state.players = [hunter_player, prey_player]
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(scavenger.meat_food, 3)
+        self.assertEqual(scavenger.total_food, scavenger.population)
+
+    def test_scavenging_does_not_trigger_after_forage(self):
+        hunter_player = Player(name="Forager")
+        other_player = Player(name="Other")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        scavenger.population = 4
+        scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        hunter_player.species.append(forager)
+        other_player.species.append(scavenger)
+        state = GameState()
+        state.players = [hunter_player, other_player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(scavenger.meat_food, 0)
+
+    def test_scavenging_does_not_trigger_after_a_failed_hunt(self):
+        hunter_player = Player(name="Hungry hunter")
+        other_player = Player(name="Other")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 2
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        scavenger = Species(solo_card=SoloSpecies(), round_created=1)
+        scavenger.size = 4
+        scavenger.population = 4
+        scavenger.add_trait_card(TraitCard(SCAVENGING), max_traits=3)
+        hunter_player.species.append(hunter)
+        other_player.species.append(scavenger)
+        state = GameState()
+        state.players = [hunter_player, other_player]
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(hunter.population, 1)
+        self.assertEqual(scavenger.meat_food, 0)
+
     def test_opportunistic_triggers_for_active_players_species_after_forage(self):
         player = Player(name="Foraging player")
         forager = Species(solo_card=SoloSpecies(), round_created=1)

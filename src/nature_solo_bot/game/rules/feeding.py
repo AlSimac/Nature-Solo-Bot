@@ -1,6 +1,6 @@
 from random import Random
 
-from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC
+from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC, SCAVENGING
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
@@ -47,6 +47,21 @@ class FeedingRules:
 
             if FeedingRules.hunt(state, active_player, species):
                 successful_feeding = True
+
+                # Triggering Scavenging
+                for player in state.players:
+                    for species in player.species:
+                        scavenging_count = sum(
+                            trait.effect_id == SCAVENGING.effect_id for trait in species.traits
+                        )
+
+                        for _ in range(scavenging_count):
+                            extra_food = min(
+                                2,
+                                max(0, species.population - species.total_food),
+                            )
+                            FeedingRules.eat(species, MEAT, extra_food)
+
                 break
 
         if successful_feeding:
