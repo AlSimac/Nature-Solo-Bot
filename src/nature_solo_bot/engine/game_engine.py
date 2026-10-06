@@ -29,9 +29,11 @@ class GameEngine:
         self,
         seed: int | None = None,
         difficulty: Difficulty = DIFFICULTY_MEDIUM,
+        promo: bool = False,
     ):
         self.seed = seed
         self.difficulty = difficulty
+        self.promo = promo
         self.rng = random.Random(seed)
         self.state: GameState | None = None
 
@@ -65,7 +67,7 @@ class GameEngine:
         state.players[1].solo_deck = Card.init_solo_deck()
         self.rng.shuffle(state.players[1].solo_deck)
         # Shuffle the Nature trait decks
-        state.nature_deck = Card.init_nature_deck()
+        state.nature_deck = Card.init_nature_deck(promo=self.promo)
         self.rng.shuffle(state.nature_deck)
 
     def draw_card(self, deck: list[T], discard: list[T] | None = None) -> T:
