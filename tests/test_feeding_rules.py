@@ -8,7 +8,7 @@ from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import CLAWED, FAST, PLATED
+from src.nature_solo_bot.game.model.trait_cards import CLAWED, FAST, HORNED, PLATED
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
@@ -115,6 +115,50 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(prey_owner.extinct_size, prey.size)
         self.assertEqual(hunter_owner.lost_population, 0)
 
+    def test_each_horned_trait_kills_hunter_population_equal_to_prey_size(self):
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.size = 3
+        prey.add_trait_card(TraitCard(HORNED), max_traits=3)
+        prey.add_trait_card(TraitCard(HORNED), max_traits=3)
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 10
+
+        self.assertEqual(FeedingRules.hunter_loss_caused_by_prey(prey, hunter), 6)
+
+    def test_horned_losses_are_capped_at_hunter_population(self):
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.size = 3
+        prey.add_trait_card(TraitCard(HORNED), max_traits=3)
+        prey.add_trait_card(TraitCard(HORNED), max_traits=3)
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 4
+
+        self.assertEqual(FeedingRules.hunter_loss_caused_by_prey(prey, hunter), 4)
+
+    def test_horned_extinction_does_not_prevent_prey_from_being_killed(self):
+        prey_owner = Player(name="Prey owner")
+        hunter_owner = Player(name="Hunter owner")
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        prey.size = 2
+        prey.add_trait_card(TraitCard(HORNED), max_traits=3)
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.size = 2
+        hunter.population = 1
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        prey_owner.species.append(prey)
+        hunter_owner.species.append(hunter)
+        state = GameState()
+        state.players = [prey_owner, hunter_owner]
+
+        self.assertTrue(FeedingRules.hunt(state, hunter_owner, hunter))
+
+        self.assertIn(prey, prey_owner.species)
+        self.assertEqual(prey.population, 1)
+        self.assertEqual(prey_owner.lost_population, 1)
+        self.assertNotIn(hunter, hunter_owner.species)
+        self.assertEqual(hunter_owner.lost_population, 1)
+
     def test_sort_preys_prioritizes_opponents_size_then_age(self):
         own_old_large = SimpleNamespace(size=3, round_created=1)
         own_new_small = SimpleNamespace(size=1, round_created=2)
@@ -143,13 +187,13 @@ class FeedingRulesTest(unittest.TestCase):
         )
 
     def test_count_own_losses_keeps_loss_with_selected_prey(self):
-        own_prey = object()
-        opponent_prey = object()
-        player = SimpleNamespace(species=[own_prey])
+        own_prey = Species(solo_card=SoloSpecies(), round_created=1)
+        opponent_prey = Species(solo_card=SoloSpecies(), round_created=1)
+        player = Player(name="Hunter owner")
+        player.species.append(own_prey)
 
         least_dangerous_preys = FeedingRules.count_own_losses(
-            SimpleNamespace(),
-            SimpleNamespace(),
+            Species(solo_card=SoloSpecies(), round_created=1),
             [own_prey, opponent_prey],
             player,
         )
@@ -163,7 +207,7 @@ class FeedingRulesTest(unittest.TestCase):
         opponent_prey = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.extend([hunter, own_prey])
 
-        def hunter_loss_caused_by_prey(prey, hunter):
+        def hunter_loss_caused_by_prey(prey, _):
             return 2 if prey is opponent_prey else 0
 
         with patch.object(
@@ -172,7 +216,6 @@ class FeedingRulesTest(unittest.TestCase):
             side_effect=hunter_loss_caused_by_prey,
         ):
             least_dangerous_preys = FeedingRules.count_own_losses(
-                GameState(),
                 hunter,
                 [opponent_prey, own_prey],
                 player,

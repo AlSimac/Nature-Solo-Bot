@@ -1,6 +1,6 @@
 from random import Random
 
-from ..model.trait_cards import CLAWED, FAST
+from ..model.trait_cards import CLAWED, FAST, HORNED
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
@@ -111,7 +111,11 @@ class FeedingRules:
         if not possible_preys:
             return False
 
-        least_dangerous_preys = FeedingRules.count_own_losses(state, hunter, possible_preys, player)
+        least_dangerous_preys = FeedingRules.count_own_losses(
+            hunter,
+            possible_preys,
+            player,
+        )
         chosen_prey, _ = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
         prey_owner = next(
             (candidate for candidate in state.players if chosen_prey in candidate.species),
@@ -134,9 +138,12 @@ class FeedingRules:
         return True
 
     @staticmethod
-    def hunter_loss_caused_by_prey(prey: Species, hunter: Species) -> int:
-        """Return hunter populations lost to prey traits; trait effects are not implemented yet."""
-        return 0
+    def hunter_loss_caused_by_prey(prey: Species, hunting_species: Species) -> int:
+        """Return hunter populations lost to the prey's Horned traits."""
+        return min(
+            sum(prey.size for trait in prey.traits if trait.effect_id == HORNED.effect_id),
+            hunting_species.population,
+        )
 
     def eat(species: Species, food_type: str, food_taken: int):
         """Define the eat action"""
@@ -195,7 +202,6 @@ class FeedingRules:
 
     @staticmethod
     def count_own_losses(
-        state: GameState,
         hunter: Species,
         possible_preys: list[Species],
         player: Player,

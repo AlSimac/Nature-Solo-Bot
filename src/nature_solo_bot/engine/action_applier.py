@@ -23,7 +23,7 @@ class ActionApplier:
 
     def kill_populations(state: GameState, loss: int, species: Species, player: Player):
         """Kill populations of a species"""
-        for _ in range(loss):
+        for _ in range(min(loss, species.population)):
             ActionApplier.kill_one_population(state, species, player)
 
     def kill_one_population(state: GameState, species: Species, player: Player):
