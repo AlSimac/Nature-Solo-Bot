@@ -1,4 +1,5 @@
 import unittest
+from random import Random
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -8,11 +9,141 @@ from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import CLAWED, FAST, HORNED, PLATED
+from src.nature_solo_bot.game.model.trait_cards import (
+    CLAWED,
+    FAST,
+    HORNED,
+    OPPORTUNISTIC,
+    PLATED,
+)
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_opportunistic_triggers_for_active_players_species_after_forage(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 4
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(state.watering_hole_plant, 2)
+        self.assertEqual(opportunistic_species.meat_food, 2)
+
+    def test_each_opportunistic_copy_triggers_independently(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 10
+        for trait in (OPPORTUNISTIC, OPPORTUNISTIC):
+            opportunistic_species.add_trait_card(TraitCard(trait), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(opportunistic_species.meat_food, 4)
+
+    def test_opportunistic_food_does_not_exceed_hungry_population(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 3
+        opportunistic_species.meat_food = 2
+        for _ in range(2):
+            opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(opportunistic_species.meat_food, 3)
+        self.assertEqual(opportunistic_species.total_food, opportunistic_species.population)
+
+    def test_opportunistic_does_not_trigger_when_forage_empties_watering_hole(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 3
+        forager.population = 3
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 4
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(opportunistic_species.meat_food, 0)
+
+    def test_opportunistic_does_not_trigger_after_a_failed_hunt(self):
+        player = Player(name="Hungry hunter")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 2
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        hunter.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.append(hunter)
+        state = GameState()
+        state.players = [player]
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(hunter.meat_food, 0)
+        self.assertEqual(hunter.population, 1)
+        self.assertEqual(player.lost_population, 1)
+
+    def test_opportunistic_triggers_after_a_successful_hunt(self):
+        hunter_player = Player(name="Hunter")
+        prey_player = Player(name="Prey")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 3
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 4
+        opportunistic_species.add_trait_card(HunterCard(), max_traits=3)
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        hunter_player.species.extend([hunter, opportunistic_species])
+        prey_player.species.append(prey)
+        state = GameState()
+        state.players = [hunter_player, prey_player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(hunter.meat_food, 1)
+        self.assertEqual(opportunistic_species.meat_food, 2)
+        self.assertEqual(state.watering_hole_plant, 3)
+        self.assertEqual(prey.population, 1)
+
+    def test_opportunistic_increases_prey_defense_when_hunted(self):
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+
+        self.assertFalse(FeedingRules.is_valid_target(prey, hunter))
+
+        prey.remove_trait_card(prey.trait_cards[0])
+        self.assertTrue(FeedingRules.is_valid_target(prey, hunter))
+
     def test_clawed_increases_forage_yield_by_two_per_trait(self):
         for clawed_count, expected_food in ((0, 2), (1, 4), (2, 6)):
             with self.subTest(clawed_count=clawed_count):

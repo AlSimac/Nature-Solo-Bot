@@ -1,6 +1,6 @@
 from random import Random
 
-from ..model.trait_cards import CLAWED, FAST, HORNED
+from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
@@ -25,6 +25,8 @@ class FeedingRules:
             active_player.passing = True
             return
 
+        successful_feeding = False
+
         for species in ordered_species:
             if not species.is_hunter:
                 available_food = FeedingRules.get_available_food(state, active_player)
@@ -40,10 +42,26 @@ class FeedingRules:
                     ActionApplier.discard_card_for_watering_hole(state, active_player, rng)
 
                 FeedingRules.forage(state, species)
+                successful_feeding = True
                 break
 
             if FeedingRules.hunt(state, active_player, species):
+                successful_feeding = True
                 break
+
+        if successful_feeding:
+            if state.watering_hole_plant > 0:
+                for species in active_player.species:
+                    opportunistic_count = sum(
+                        trait.effect_id == OPPORTUNISTIC.effect_id for trait in species.traits
+                    )
+                    for _ in range(opportunistic_count):
+                        extra_food = min(
+                            2,
+                            max(0, species.population - species.total_food),
+                        )
+                        FeedingRules.eat(species, MEAT, extra_food)
+
         else:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
