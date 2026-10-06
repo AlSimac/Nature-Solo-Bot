@@ -1,5 +1,7 @@
 from random import Random
 
+from ..model.trait_cards import CLAWED, FAST
+
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
@@ -109,22 +111,14 @@ class FeedingRules:
         if not possible_preys:
             return False
 
-        least_dangerous_preys = FeedingRules.count_own_losses(
-            state, hunter, possible_preys, player
-        )
+        least_dangerous_preys = FeedingRules.count_own_losses(state, hunter, possible_preys, player)
         chosen_prey, _ = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
         prey_owner = next(
-            (
-                candidate
-                for candidate in state.players
-                if chosen_prey in candidate.species
-            ),
+            (candidate for candidate in state.players if chosen_prey in candidate.species),
             None,
         )
         if prey_owner is None:
-            raise ValueError(
-                "The selected prey does not belong to a player in the game state."
-            )
+            raise ValueError("The selected prey does not belong to a player in the game state.")
 
         hunter_loss = FeedingRules.hunter_loss_caused_by_prey(chosen_prey, hunter)
 
@@ -158,23 +152,46 @@ class FeedingRules:
 
     @staticmethod
     def plant_food_taken_in_one_forage(species: Species, available_food: int) -> int:
+        clawed_count = sum(1 for trait in species.traits if trait.effect_id == CLAWED.effect_id)
+
         return min(
-            species.forage_value,
+            species.forage_value + 2 * clawed_count,
             max(0, species.population - species.total_food),
             available_food,
         )
 
     @staticmethod
-    def find_valid_targets(state: GameState, hunter: Species) -> list[Species]:
+    def find_valid_targets(state: GameState, hunting_species: Species) -> list[Species]:
         """Find all possible prey for this hunter"""
         valid_targets = []
 
         for player in state.players:
             for species in player.species:
-                if species is not hunter and species.defense_value <= hunter.attack_value:
+                if FeedingRules.is_valid_target(species, hunting_species):
                     valid_targets.append(species)
 
         return valid_targets
+
+    @staticmethod
+    def is_valid_target(possible_prey: Species, hunting_species: Species) -> bool:
+        """Check if the species is a valid target for hunting"""
+        is_valid = True
+
+        # Cannot hunt itself
+        if possible_prey is hunting_species:
+            is_valid = False
+
+        # Cannot hunt a species with a defense value strictly greater than its attack value
+        if possible_prey.defense_value > hunting_species.attack_value:
+            is_valid = False
+
+        # Cannot hunt a species with more Fast traits than itself
+        if sum(1 for trait in possible_prey.traits if trait.effect_id == FAST.effect_id) > sum(
+            1 for trait in hunting_species.traits if trait.effect_id == FAST.effect_id
+        ):
+            is_valid = False
+
+        return is_valid
 
     @staticmethod
     def count_own_losses(
@@ -196,9 +213,7 @@ class FeedingRules:
 
         minimum_losses = min(loss_per_prey.values())
         least_dangerous_preys = [
-            (prey, losses)
-            for prey, losses in loss_per_prey.items()
-            if losses == minimum_losses
+            (prey, losses) for prey, losses in loss_per_prey.items() if losses == minimum_losses
         ]
         return least_dangerous_preys
 
