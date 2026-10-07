@@ -1,19 +1,20 @@
 """Tests for running and exporting game batches."""
 
-import csv
-import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
+from src.nature_solo_bot.analysis import GameLogger
+from src.nature_solo_bot.cli.run_experiments import RunExperiments
+from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.experiments import BatchRunner
-from src.nature_solo_bot.game.model.state import DIFFICULTY_EASY
+from src.nature_solo_bot.game.model.state import DIFFICULTY_EASY, DIFFICULTY_MEDIUM
 
 
 class BatchRunnerTest(unittest.TestCase):
-    def test_run_writes_each_game_and_setting_to_csv(self):
+    def test_run_writes_a_unique_full_log_for_each_game(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
-            output_path = Path(temporary_directory) / "nested" / "results.csv"
+            output_directory = Path(temporary_directory) / "nested"
             runner = BatchRunner(
                 game_count=3,
                 start_seed=10,
@@ -21,44 +22,84 @@ class BatchRunnerTest(unittest.TestCase):
                 promo=True,
             )
 
-            records = runner.run(output_path)
+            log_paths = runner.run(output_directory)
+            log_contents = [log_path.read_text(encoding="utf-8") for log_path in log_paths]
+            self.assertTrue(all(path.is_file() for path in log_paths))
 
-            with output_path.open(encoding="utf-8", newline="") as output_file:
-                rows = list(csv.DictReader(output_file))
+        self.assertEqual(len(log_paths), 3)
+        self.assertEqual(len({path.name for path in log_paths}), 3)
+        for index, (log_path, log_text) in enumerate(zip(log_paths, log_contents), start=1):
+            self.assertRegex(
+                log_path.name,
+                r"gamelog_1_difficulty_[0-9a-f]{32}\.log",
+            )
+            self.assertIn(f"Game number: {index}", log_text)
+            self.assertIn(f"Seed: {index + 9}", log_text)
+            self.assertIn("Promo cards: True", log_text)
+            self.assertIn("ROUND 1 - PREPARATION", log_text)
+            self.assertIn("ROUND 1 - ADAPTATION", log_text)
+            self.assertIn("ROUND 1 - FEEDING", log_text)
+            self.assertIn("ROUND 1 - SCORING", log_text)
+            self.assertIn("final scores:", log_text)
+            self.assertRegex(log_text, r"Winner: (Rani|Radwin)")
 
-        self.assertEqual(len(records), 3)
-        self.assertEqual([row["seed"] for row in rows], ["10", "11", "12"])
-        self.assertEqual([row["game_number"] for row in rows], ["1", "2", "3"])
-        self.assertEqual(rows[0]["game_count"], "3")
-        self.assertEqual(rows[0]["difficulty_round_one_population"], "2")
-        self.assertEqual(rows[0]["difficulty_cards_to_draw"], "6")
-        self.assertEqual(rows[0]["promo"], "True")
-        self.assertIn("score_Rani", rows[0])
-        self.assertIn("score_Radwin", rows[0])
-        self.assertIn(rows[0]["winner"], ("Rani", "Radwin"))
-
-    def test_run_writes_json_results(self):
+    def test_log_captures_trait_trigger_details(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
-            output_path = Path(temporary_directory) / "results.json"
-            records = BatchRunner(game_count=2).run(output_path)
-            saved_records = json.loads(output_path.read_text(encoding="utf-8"))
+            log_path = Path(temporary_directory) / "gamelog.log"
+            baseline_state = GameEngine(
+                seed=0,
+                difficulty=DIFFICULTY_MEDIUM,
+            ).run_game()
+            engine = GameEngine(seed=0, difficulty=DIFFICULTY_MEDIUM)
 
-        self.assertEqual(saved_records, records)
-        self.assertEqual([record["seed"] for record in saved_records], [1, 2])
-        self.assertEqual([record["game_number"] for record in saved_records], [1, 2])
-        self.assertTrue(all("score_Rani" in record for record in saved_records))
-        self.assertTrue(all("score_Radwin" in record for record in saved_records))
+            completed_state = GameLogger().run_game(
+                engine,
+                log_path,
+                game_number=1,
+            )
+            log_text = log_path.read_text(encoding="utf-8")
 
-    def test_run_rejects_unsupported_output_format(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            output_path = Path(temporary_directory) / "results.txt"
-
-            with self.assertRaisesRegex(ValueError, "output_format"):
-                BatchRunner(game_count=1).run(output_path)
+        self.assertEqual(completed_state.current_round, completed_state.total_rounds + 1)
+        self.assertEqual(
+            [player.score for player in completed_state.players],
+            [player.score for player in baseline_state.players],
+        )
+        self.assertIn("Tusked trigger", log_text)
+        self.assertIn("Scavenging trigger", log_text)
+        self.assertIn("Opportunistic trigger", log_text)
+        self.assertIn("the watering hole emptied", log_text)
+        self.assertIn("after a successful hunt", log_text)
+        self.assertIn("after feeding while plants remained", log_text)
 
     def test_constructor_rejects_nonpositive_game_count(self):
         with self.assertRaisesRegex(ValueError, "game_count"):
             BatchRunner(game_count=0)
+
+    def test_cli_runs_with_selected_options(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output_directory = Path(temporary_directory) / "logs"
+
+            exit_code = RunExperiments.run(
+                [
+                    "--games",
+                    "2",
+                    "--start-seed",
+                    "20",
+                    "--difficulty",
+                    "easy",
+                    "--promo",
+                    "--output-dir",
+                    str(output_directory),
+                ]
+            )
+            log_paths = list(output_directory.glob("*.log"))
+            contents = [path.read_text(encoding="utf-8") for path in log_paths]
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(len(log_paths), 2)
+        self.assertTrue(any("Seed: 20" in content for content in contents))
+        self.assertTrue(any("Seed: 21" in content for content in contents))
+        self.assertTrue(all("Promo cards: True" in content for content in contents))
 
 
 if __name__ == "__main__":

@@ -1,12 +1,26 @@
-"""Run reproducible batches of games and export their settings and results."""
+"""Run reproducible batches of games and save a detailed log for each game."""
 
-import csv
-import json
 from pathlib import Path
-from typing import Literal
+from uuid import uuid4
 
+from ..analysis.game_logger import GameLogger
 from ..engine.game_engine import GameEngine
-from ..game.model.state import DIFFICULTY_MEDIUM, Difficulty
+from ..game.model.state import (
+    DIFFICULTY_EASIEST,
+    DIFFICULTY_EASY,
+    DIFFICULTY_HARD,
+    DIFFICULTY_HARDEST,
+    DIFFICULTY_MEDIUM,
+    Difficulty,
+)
+
+_DIFFICULTY_IDS = {
+    DIFFICULTY_EASIEST: 0,
+    DIFFICULTY_EASY: 1,
+    DIFFICULTY_MEDIUM: 2,
+    DIFFICULTY_HARD: 3,
+    DIFFICULTY_HARDEST: 4,
+}
 
 
 class BatchRunner:
@@ -30,28 +44,16 @@ class BatchRunner:
 
     def run(
         self,
-        output_path: str | Path,
-        *,
-        output_format: Literal["csv", "json"] | None = None,
-    ) -> list[dict[str, object]]:
-        """Run the configured games and write one record per game.
-
-        When output_format is omitted, the format is inferred from the file
-        extension. The records are returned after they have been written.
-        """
-        path = Path(output_path)
-        selected_format = (
-            output_format
-            if output_format is not None
-            else path.suffix.lower().lstrip(".")
+        output_directory: str | Path = "output",
+    ) -> list[Path]:
+        """Run the configured games and save a uniquely named log per game."""
+        directory = Path(output_directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        difficulty_id = _DIFFICULTY_IDS.get(self.difficulty)
+        difficulty_label = (
+            str(difficulty_id) if difficulty_id is not None else "custom"
         )
-        if selected_format not in ("csv", "json"):
-            raise ValueError(
-                "output_format must be 'csv' or 'json', or the output path "
-                "must have a .csv or .json extension."
-            )
-
-        records: list[dict[str, object]] = []
+        log_paths: list[Path] = []
         for game_number in range(1, self.game_count + 1):
             seed = self.start_seed + game_number - 1
             engine = GameEngine(
@@ -59,37 +61,14 @@ class BatchRunner:
                 difficulty=self.difficulty,
                 promo=self.promo,
             )
-            state = engine.run_game()
-            winner = engine.define_winner()
-
-            record: dict[str, object] = {
-                "game_number": game_number,
-                "game_count": self.game_count,
-                "seed": seed,
-                "difficulty_round_one_population": (
-                    self.difficulty.round_one_population
-                ),
-                "difficulty_cards_to_draw": self.difficulty.cards_to_draw,
-                "promo": self.promo,
-            }
-            record.update(
-                {f"score_{player.name}": player.score for player in state.players}
+            log_path = directory / (
+                f"gamelog_{difficulty_label}_{seed}.log"
             )
-            record["winner"] = winner.name if winner is not None else None
-            records.append(record)
+            GameLogger().run_game(
+                engine,
+                log_path,
+                game_number=game_number,
+            )
+            log_paths.append(log_path)
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if selected_format == "csv":
-            with path.open("w", encoding="utf-8", newline="") as output_file:
-                writer = csv.DictWriter(
-                    output_file,
-                    fieldnames=list(records[0]),
-                )
-                writer.writeheader()
-                writer.writerows(records)
-        else:
-            with path.open("w", encoding="utf-8") as output_file:
-                json.dump(records, output_file, indent=2)
-                output_file.write("\n")
-
-        return records
+        return log_paths
