@@ -38,3 +38,29 @@ Add `--output output\core\hardest\trait_assignment_counts.csv` to save the
 summary as CSV. Only successful trait assignments during adaptation are
 counted; a trait appearing on a species board or triggering during feeding
 does not count as a new assignment.
+
+To see, for every trait and round, how many species carried it and how much
+food those species ate on average, add `--food-by-trait`:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.analyze_traits output\core\hardest --food-by-trait --output output\core\hardest\trait_food_by_round.csv
+```
+
+A species qualifies once per trait per round even if it has multiple copies.
+The trait is read from the post-adaptation board, and food includes both plant
+and meat food eaten during that round. Qualifying species that ate no food
+remain in the average as zero-food observations.
+
+To aggregate exact trait combinations instead, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.analyze_traits output\core\hardest --trait-combinations --output output\core\hardest\trait_combinations.csv
+```
+
+Each species-round with at least one trait contributes one observation for its
+exact trait combination, so the presence count is species-round appearances,
+not unique game-rounds. Duplicate copies are preserved (for example,
+`Fast + Fast` differs from `Fast`). The CSV reports species-round appearances,
+extinctions during feeding, total and average food eaten per species-round,
+starting population at the start of feeding, and population lost by the end of
+feeding. Extinct species count as losing their full starting population.
