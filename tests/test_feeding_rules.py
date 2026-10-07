@@ -10,6 +10,7 @@ from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.model.trait_cards import (
+    AVID_FORAGER,
     CLAWED,
     FAST,
     HORNED,
@@ -23,6 +24,47 @@ from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_avid_forager_discards_before_bonus_forage(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        player.species.append(forager)
+        player.hand = [SimpleNamespace(food_value=2)]
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 1
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 2)
+        self.assertEqual(state.watering_hole_plant, 1)
+        self.assertEqual(player.hand, [])
+        self.assertEqual(len(state.nature_discard), 1)
+
+    def test_avid_forager_projection_includes_bonus_forage_and_refill(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        player.species.append(forager)
+        player.hand = [SimpleNamespace(food_value=2)]
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 1
+
+        projected_food = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+
+        self.assertEqual(projected_food, 2)
+        self.assertEqual(state.watering_hole_plant, 1)
+        self.assertEqual(len(player.hand), 1)
+        self.assertEqual(forager.total_food, 0)
+
     def test_scavenging_triggers_for_both_players_after_a_successful_hunt(self):
         hunter_player = Player(name="Hunter")
         prey_player = Player(name="Prey")

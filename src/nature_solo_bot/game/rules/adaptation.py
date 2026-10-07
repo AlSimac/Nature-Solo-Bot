@@ -6,6 +6,7 @@ from ..model.species import Species
 from ..model.state import GameState
 from ..model.symbol import Symbol, SymbolIncrease, SymbolName
 from ..model.trait_card import TraitCard
+from ..model.trait_cards import AVID_FORAGER
 from .preparation import PreparationRules
 
 
@@ -153,13 +154,26 @@ class AdaptationRules:
         picked_card: TraitCard,
         increase: SymbolIncrease,
     ) -> bool:
+        """Method increasing size or population"""
         if increase == SymbolIncrease.SIZE:
-            if candidate.size >= state.max_size:
+            species_max_size = min(
+                state.max_size,
+                2
+                if any(
+                    trait.effect_id == AVID_FORAGER.effect_id
+                    for trait in candidate.traits
+                )
+                else state.max_size,
+            )
+
+            if candidate.size >= species_max_size:
                 return False
 
             candidate.size += 1
+
         elif increase == SymbolIncrease.POPULATION:
             candidate.population += 1
+
         else:
             return False
 

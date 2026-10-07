@@ -3,10 +3,39 @@ import unittest
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import CLAWED, PLATED
+from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER, CLAWED, PLATED
 
 
 class SpeciesTest(unittest.TestCase):
+    def test_avid_forager_can_only_be_added_to_species_size_two_or_smaller(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        avid_forager = TraitCard(AVID_FORAGER)
+
+        species.size = 2
+        self.assertTrue(species.add_trait_card(avid_forager, max_traits=3))
+
+        larger_species = Species(solo_card=SoloSpecies(), round_created=1)
+        larger_species.size = 3
+        self.assertFalse(
+            larger_species.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        )
+        self.assertEqual(larger_species.trait_cards, [])
+
+    def test_avid_forager_cannot_be_added_by_replacing_trait_on_larger_species(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        existing_trait = TraitCard(CLAWED)
+        species.add_trait_card(existing_trait, max_traits=3)
+        species.size = 3
+
+        self.assertFalse(
+            species.replace_trait_card(
+                existing_trait,
+                TraitCard(AVID_FORAGER),
+                max_traits=3,
+            )
+        )
+        self.assertEqual(species.trait_cards, [existing_trait])
+
     def test_hunger_status_tracks_food_and_population_changes(self):
         species = Species(solo_card=SoloSpecies(), round_created=1)
         self.assertTrue(species.is_hungry)

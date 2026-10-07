@@ -18,10 +18,45 @@ from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease, SymbolName
-from src.nature_solo_bot.game.model.trait_cards import FAST
+from src.nature_solo_bot.game.model.trait_card import TraitCard
+from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER, FAST
 
 
 class AdaptationPhaseTest(unittest.TestCase):
+    def test_avid_forager_species_cannot_grow_past_size_two(self):
+        engine = GameEngine(seed=42)
+        state = GameState()
+        engine.state = state
+        player = Player(name="Rani")
+
+        avid_species = Species(
+            solo_card=SoloSpecies(
+                pink_symbols=[Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE)]
+            ),
+            round_created=1,
+        )
+        avid_species.size = 2
+        avid_species.add_trait_card(TraitCard(AVID_FORAGER), max_traits=state.max_traits)
+        next_species = Species(
+            solo_card=SoloSpecies(
+                pink_symbols=[Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE)]
+            ),
+            round_created=2,
+        )
+        player.species.extend([avid_species, next_species])
+        card = next(
+            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
+        )
+        player.hand.append(card)
+        temporary_hand: list = []
+
+        engine.assign_card_to_correct_candidate(player, temporary_hand)
+
+        self.assertEqual(avid_species.size, 2)
+        self.assertEqual(next_species.size, 2)
+        self.assertIn(card, state.nature_discard)
+        self.assertEqual(temporary_hand, [])
+
     def test_seeded_random_species_and_sizes_print_initial_and_final_state(self):
         engine = GameEngine(seed=73)
         state = GameState()

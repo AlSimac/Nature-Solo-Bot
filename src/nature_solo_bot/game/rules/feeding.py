@@ -7,6 +7,7 @@ from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
 from ..model.trait_cards import (
+    AVID_FORAGER,
     CLAWED,
     FAST,
     HORNED,
@@ -43,14 +44,17 @@ class FeedingRules:
                 if available_food <= 0:
                     continue
 
-                while (
-                    state.watering_hole_plant
-                    < FeedingRules.plant_food_taken_in_one_forage(species, available_food)
-                    and active_player.hand
+                if not FeedingRules._forage_with_refill(
+                    state, active_player, species, rng
                 ):
-                    ActionApplier.discard_card_for_watering_hole(state, active_player, rng)
+                    continue
 
-                FeedingRules.forage(state, species)
+                for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
+                    if not FeedingRules._forage_with_refill(
+                        state, active_player, species, rng
+                    ):
+                        break
+
                 successful_feeding = True
                 break
 
@@ -79,6 +83,32 @@ class FeedingRules:
         else:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
+
+    @staticmethod
+    def _forage_with_refill(
+        state: GameState,
+        player: Player,
+        species: Species,
+        rng: Random,
+    ) -> bool:
+        """Forage once, discarding cards first when the watering hole needs food."""
+        while player.hand:
+            available_food = FeedingRules.get_available_food(state, player)
+            forage_amount = FeedingRules.plant_food_taken_in_one_forage(
+                species,
+                available_food,
+            )
+
+            if state.watering_hole_plant >= forage_amount:
+                break
+
+            ActionApplier.discard_card_for_watering_hole(state, player, rng)
+
+        if state.watering_hole_plant <= 0:
+            return False
+
+        FeedingRules.forage(state, species)
+        return True
 
     @staticmethod
     def choose_species_to_feed(
@@ -110,36 +140,52 @@ class FeedingRules:
         forager: Species,
         available_food: int,
     ) -> int:
-        """Project this forage and its triggers, valuing each discarded card at three food."""
-        forage_amount = FeedingRules.plant_food_taken_in_one_forage(forager, available_food)
+        """Project all forages and triggers, valuing each discarded card at three food."""
         all_species = [species for player in state.players for species in player.species]
-        cards_to_discard = min(
-            len(active_player.hand),
-            max(0, (forage_amount - state.watering_hole_plant + 2) // 3),
-        )
-        simulated_watering_hole_food = state.watering_hole_plant + 3 * cards_to_discard
         simulated_species = {id(species): copy(species) for species in all_species}
         simulated_forager = simulated_species[id(forager)]
         simulated_active_species = [
             simulated_species[id(species)] for species in active_player.species
         ]
-        plants_eaten = FeedingRules.eat(
-            simulated_forager,
-            PLANT,
-            simulated_forager.forage_value,
-            available_from_source=simulated_watering_hole_food,
-        )
-        remaining_food = simulated_watering_hole_food - plants_eaten
+        simulated_watering_hole_food = state.watering_hole_plant
+        remaining_cards = len(active_player.hand)
+        simulated_available_food = available_food
+        successful_forage = False
 
-        if plants_eaten > 0 and remaining_food == 0:
-            FeedingRules._trigger_trait_feeding(
-                simulated_species.values(),
-                TUSKED.effect_id,
-                1,
-                MEAT,
+        for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
+            while remaining_cards:
+                forage_amount = FeedingRules.plant_food_taken_in_one_forage(
+                    simulated_forager,
+                    simulated_available_food,
+                )
+                if simulated_watering_hole_food >= forage_amount:
+                    break
+
+                simulated_watering_hole_food += 3
+                remaining_cards -= 1
+
+            if simulated_watering_hole_food <= 0:
+                break
+
+            plants_eaten = FeedingRules.eat(
+                simulated_forager,
+                PLANT,
+                simulated_forager.forage_value,
+                available_from_source=simulated_watering_hole_food,
             )
+            simulated_watering_hole_food -= plants_eaten
+            simulated_available_food = simulated_watering_hole_food + 3 * remaining_cards
+            successful_forage = True
 
-        if remaining_food > 0:
+            if plants_eaten > 0 and simulated_watering_hole_food == 0:
+                FeedingRules._trigger_trait_feeding(
+                    simulated_species.values(),
+                    TUSKED.effect_id,
+                    1,
+                    MEAT,
+                )
+
+        if successful_forage and simulated_watering_hole_food > 0:
             FeedingRules._trigger_trait_feeding(
                 simulated_active_species,
                 OPPORTUNISTIC.effect_id,

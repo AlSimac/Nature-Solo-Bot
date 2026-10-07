@@ -3,7 +3,7 @@ from enum import Enum
 from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_card import TraitCard
-from .trait_cards import HUNTER
+from .trait_cards import AVID_FORAGER, HUNTER
 
 
 class TreeColor(Enum):
@@ -59,11 +59,14 @@ class Species:
         return [card.trait for card in self.trait_cards]
 
     def add_trait_card(self, card: TraitCard, *, max_traits: int) -> bool:
-        if len(self.trait_cards) >= max_traits:
-            return False
-
-        self.trait_cards.append(card)
-        return True
+        """Give a trait to a species"""
+        if not (
+            (len(self.trait_cards) >= max_traits)
+            or (card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2)
+        ):
+            self.trait_cards.append(card)
+            return True
+        return False
 
     def remove_trait_card(self, card: TraitCard) -> bool:
         if card not in self.trait_cards:
@@ -79,7 +82,14 @@ class Species:
         *,
         max_traits: int,
     ) -> bool:
-        if old_card not in self.trait_cards or len(self.trait_cards) > max_traits:
+        if (
+            old_card not in self.trait_cards
+            or len(self.trait_cards) > max_traits
+            or (
+                new_card.trait.effect_id == AVID_FORAGER.effect_id
+                and self.size > 2
+            )
+        ):
             return False
 
         card_index = self.trait_cards.index(old_card)
@@ -87,9 +97,7 @@ class Species:
         return True
 
     def trait_count(self, trait_id: str):
-        return sum(
-            trait.effect_id == trait_id for trait in self.traits
-        )
+        return sum(trait.effect_id == trait_id for trait in self.traits)
 
     def switch_tree_color(self):
         """Switch the tree color of the species."""
