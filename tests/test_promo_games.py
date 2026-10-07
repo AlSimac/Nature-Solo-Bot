@@ -1,7 +1,7 @@
 """Run several full games with the Promo cards and save only their final scores."""
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER

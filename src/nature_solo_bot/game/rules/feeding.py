@@ -1,9 +1,21 @@
+from collections.abc import Iterable
+from copy import copy
 from random import Random
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
+from ..model.trait_cards import (
+    AVID_FORAGER,
+    CLAWED,
+    FAST,
+    HORNED,
+    OPPORTUNISTIC,
+    SCAVENGING,
+    SOCIAL,
+    TUSKED,
+)
 
 PLANT = "plant_food"
 MEAT = "meat_food"
@@ -23,6 +35,8 @@ class FeedingRules:
             active_player.passing = True
             return
 
+        successful_feeding = False
+
         for species in ordered_species:
             if not species.is_hunter:
                 available_food = FeedingRules.get_available_food(state, active_player)
@@ -30,35 +44,87 @@ class FeedingRules:
                 if available_food <= 0:
                     continue
 
-                while (
-                    state.watering_hole_plant
-                    < FeedingRules.plant_food_taken_in_one_forage(species, available_food)
-                    and active_player.hand
+                if not FeedingRules._forage_with_refill(
+                    state, active_player, species, rng
                 ):
-                    ActionApplier.discard_card_for_watering_hole(state, active_player, rng)
+                    continue
 
-                FeedingRules.forage(state, species)
+                for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
+                    if not FeedingRules._forage_with_refill(
+                        state, active_player, species, rng
+                    ):
+                        break
+
+                successful_feeding = True
                 break
 
             if FeedingRules.hunt(state, active_player, species):
+                successful_feeding = True
+
+                # Triggering Scavenging
+                FeedingRules._trigger_trait_feeding(
+                    (species for player in state.players for species in player.species),
+                    SCAVENGING.effect_id,
+                    2,
+                    MEAT,
+                )
+
                 break
+
+        if successful_feeding:
+            if state.watering_hole_plant > 0:
+                FeedingRules._trigger_trait_feeding(
+                    active_player.species,
+                    OPPORTUNISTIC.effect_id,
+                    2,
+                    MEAT,
+                )
+
         else:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
+
+    @staticmethod
+    def _forage_with_refill(
+        state: GameState,
+        player: Player,
+        species: Species,
+        rng: Random,
+    ) -> bool:
+        """Forage once, discarding cards first when the watering hole needs food."""
+        while player.hand:
+            available_food = FeedingRules.get_available_food(state, player)
+            forage_amount = FeedingRules.plant_food_taken_in_one_forage(
+                species,
+                available_food,
+            )
+
+            if state.watering_hole_plant >= forage_amount:
+                break
+
+            ActionApplier.discard_card_for_watering_hole(state, player, rng)
+
+        if state.watering_hole_plant <= 0:
+            return False
+
+        FeedingRules.forage(state, species)
+        return True
 
     @staticmethod
     def choose_species_to_feed(
         state: GameState,
         active_player: Player,
     ) -> list[Species]:
-        """Return hungry foragers by food yield, followed by hunters oldest-first."""
+        """Return foragers by projected total food gain, followed by hunters oldest-first."""
         available_food = FeedingRules.get_available_food(state, active_player)
         hungry_species = [species for species in active_player.species if species.is_hungry]
         foragers = [
             (
                 index,
                 species,
-                FeedingRules.plant_food_taken_in_one_forage(species, available_food),
+                FeedingRules._projected_food_gain_from_forage(
+                    state, active_player, species, available_food
+                ),
             )
             for index, species in enumerate(hungry_species)
             if not species.is_hunter
@@ -66,6 +132,71 @@ class FeedingRules:
         foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
         hunters = [species for species in hungry_species if species.is_hunter]
         return [species for _, species, _ in foragers] + hunters
+
+    @staticmethod
+    def _projected_food_gain_from_forage(
+        state: GameState,
+        active_player: Player,
+        forager: Species,
+        available_food: int,
+    ) -> int:
+        """Project all forages and triggers, valuing each discarded card at three food."""
+        all_species = [species for player in state.players for species in player.species]
+        simulated_species = {id(species): copy(species) for species in all_species}
+        simulated_forager = simulated_species[id(forager)]
+        simulated_active_species = [
+            simulated_species[id(species)] for species in active_player.species
+        ]
+        simulated_watering_hole_food = state.watering_hole_plant
+        remaining_cards = len(active_player.hand)
+        simulated_available_food = available_food
+        successful_forage = False
+
+        for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
+            while remaining_cards:
+                forage_amount = FeedingRules.plant_food_taken_in_one_forage(
+                    simulated_forager,
+                    simulated_available_food,
+                )
+                if simulated_watering_hole_food >= forage_amount:
+                    break
+
+                simulated_watering_hole_food += 3
+                remaining_cards -= 1
+
+            if simulated_watering_hole_food <= 0:
+                break
+
+            plants_eaten = FeedingRules.eat(
+                simulated_forager,
+                PLANT,
+                simulated_forager.forage_value,
+                available_from_source=simulated_watering_hole_food,
+            )
+            simulated_watering_hole_food -= plants_eaten
+            simulated_available_food = simulated_watering_hole_food + 3 * remaining_cards
+            successful_forage = True
+
+            if plants_eaten > 0 and simulated_watering_hole_food == 0:
+                FeedingRules._trigger_trait_feeding(
+                    simulated_species.values(),
+                    TUSKED.effect_id,
+                    1,
+                    MEAT,
+                )
+
+        if successful_forage and simulated_watering_hole_food > 0:
+            FeedingRules._trigger_trait_feeding(
+                simulated_active_species,
+                OPPORTUNISTIC.effect_id,
+                2,
+                MEAT,
+            )
+
+        return sum(
+            simulated.total_food - original.total_food
+            for original, simulated in zip(active_player.species, simulated_active_species)
+        )
 
     @staticmethod
     def get_available_food(state: GameState, active_player: Player) -> int:
@@ -95,11 +226,13 @@ class FeedingRules:
 
     def forage(state: GameState, forager: Species):
         """Forage feeding action"""
-        plant_food_taken = FeedingRules.plant_food_taken_in_one_forage(
-            forager, state.watering_hole_plant
+        plants_eaten = FeedingRules.eat(
+            forager,
+            PLANT,
+            forager.forage_value,
+            available_from_source=state.watering_hole_plant,
         )
-        state.watering_hole_plant -= plant_food_taken
-        FeedingRules.eat(forager, PLANT, plant_food_taken)
+        FeedingRules.remove_watering_hole_food(state, plants_eaten, PLANT)
 
     def hunt(state: GameState, player: Player, hunter: Species):
         """Hunt feeding action"""
@@ -110,28 +243,21 @@ class FeedingRules:
             return False
 
         least_dangerous_preys = FeedingRules.count_own_losses(
-            state, hunter, possible_preys, player
+            hunter,
+            possible_preys,
+            player,
         )
         chosen_prey, _ = FeedingRules.sort_preys(player, least_dangerous_preys)[0]
         prey_owner = next(
-            (
-                candidate
-                for candidate in state.players
-                if chosen_prey in candidate.species
-            ),
+            (candidate for candidate in state.players if chosen_prey in candidate.species),
             None,
         )
         if prey_owner is None:
-            raise ValueError(
-                "The selected prey does not belong to a player in the game state."
-            )
+            raise ValueError("The selected prey does not belong to a player in the game state.")
 
         hunter_loss = FeedingRules.hunter_loss_caused_by_prey(chosen_prey, hunter)
-
         # Actual hunt action
-        FeedingRules.eat(
-            hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food))
-        )
+        FeedingRules.eat(hunter, MEAT, chosen_prey.size)
         ActionApplier.kill_one_population(state, chosen_prey, prey_owner)
 
         if hunter_loss > 0:
@@ -140,17 +266,92 @@ class FeedingRules:
         return True
 
     @staticmethod
-    def hunter_loss_caused_by_prey(prey: Species, hunter: Species) -> int:
-        """Return hunter populations lost to prey traits; trait effects are not implemented yet."""
-        return 0
+    def hunter_loss_caused_by_prey(prey: Species, hunting_species: Species) -> int:
+        """Return hunter populations lost to the prey's Horned traits."""
+        return min(
+            sum(prey.size for trait in prey.traits if trait.effect_id == HORNED.effect_id),
+            hunting_species.population,
+        )
 
-    def eat(species: Species, food_type: str, food_taken: int):
-        """Define the eat action"""
+    @staticmethod
+    def remove_watering_hole_food(
+        state: GameState,
+        amount: int,
+        food_type: str,
+    ) -> None:
+        """Remove food from the watering hole."""
+        if food_type != PLANT:
+            return
+
+        plants_to_remove = min(max(0, amount), state.watering_hole_plant)
+
+        if plants_to_remove == 0:
+            return
+
+        state.watering_hole_plant -= plants_to_remove
+
+        if state.watering_hole_plant == 0:
+            FeedingRules._trigger_trait_feeding(
+                (species for player in state.players for species in player.species),
+                TUSKED.effect_id,
+                1,
+                MEAT,
+            )
+
+    @staticmethod
+    def _trigger_trait_feeding(
+        species_list: Iterable[Species], trait_id: str, food_per_trigger: int, food_type: str
+    ) -> None:
+        """Managed the triggered effects that make a species eat."""
+        for species in species_list:
+            for _ in range(species.trait_count(trait_id)):
+                food_to_eat = min(
+                    food_per_trigger,
+                    max(0, species.population - species.total_food),
+                )
+                FeedingRules.eat(species, food_type, food_to_eat)
+
+    @staticmethod
+    def _food_amount_to_eat(
+        species: Species,
+        food_type: str,
+        base_amount: int,
+        available_from_source: int | None = None,
+    ) -> int:
+        social_count = sum(trait.effect_id == SOCIAL.effect_id for trait in species.traits)
+        bonus = 2 * social_count
+
         if food_type == PLANT:
-            species.plant_food += food_taken
+            clawed_count = sum(trait.effect_id == CLAWED.effect_id for trait in species.traits)
+            bonus += 2 * clawed_count
 
-        elif food_type == MEAT:
-            species.meat_food += food_taken
+        limits = [
+            base_amount + bonus,
+            max(0, species.population - species.total_food),
+        ]
+
+        if available_from_source is not None:
+            limits.append(max(0, available_from_source))
+
+        return min(limits)
+
+    @staticmethod
+    def eat(
+        species: Species,
+        food_type: str,
+        base_amount: int,
+        available_from_source: int | None = None,
+    ) -> int:
+        amount = FeedingRules._food_amount_to_eat(
+            species, food_type, base_amount, available_from_source
+        )
+
+        if food_type == PLANT:
+            species.plant_food += amount
+        else:
+            species.meat_food += amount
+
+        return amount
 
     def starve(state: GameState, species: Species, player: Player):
         """Define the starve action"""
@@ -158,27 +359,48 @@ class FeedingRules:
 
     @staticmethod
     def plant_food_taken_in_one_forage(species: Species, available_food: int) -> int:
-        return min(
+        return FeedingRules._food_amount_to_eat(
+            species,
+            PLANT,
             species.forage_value,
-            max(0, species.population - species.total_food),
-            available_food,
+            available_from_source=available_food,
         )
 
     @staticmethod
-    def find_valid_targets(state: GameState, hunter: Species) -> list[Species]:
+    def find_valid_targets(state: GameState, hunting_species: Species) -> list[Species]:
         """Find all possible prey for this hunter"""
         valid_targets = []
 
         for player in state.players:
             for species in player.species:
-                if species is not hunter and species.defense_value <= hunter.attack_value:
+                if FeedingRules.is_valid_target(species, hunting_species):
                     valid_targets.append(species)
 
         return valid_targets
 
     @staticmethod
+    def is_valid_target(possible_prey: Species, hunting_species: Species) -> bool:
+        """Check if the species is a valid target for hunting"""
+        is_valid = True
+
+        # Cannot hunt itself
+        if possible_prey is hunting_species:
+            is_valid = False
+
+        # Cannot hunt a species with a defense value strictly greater than its attack value
+        if possible_prey.defense_value > hunting_species.attack_value:
+            is_valid = False
+
+        # Cannot hunt a species with more Fast traits than itself
+        if sum(1 for trait in possible_prey.traits if trait.effect_id == FAST.effect_id) > sum(
+            1 for trait in hunting_species.traits if trait.effect_id == FAST.effect_id
+        ):
+            is_valid = False
+
+        return is_valid
+
+    @staticmethod
     def count_own_losses(
-        state: GameState,
         hunter: Species,
         possible_preys: list[Species],
         player: Player,
@@ -196,9 +418,7 @@ class FeedingRules:
 
         minimum_losses = min(loss_per_prey.values())
         least_dangerous_preys = [
-            (prey, losses)
-            for prey, losses in loss_per_prey.items()
-            if losses == minimum_losses
+            (prey, losses) for prey, losses in loss_per_prey.items() if losses == minimum_losses
         ]
         return least_dangerous_preys
 

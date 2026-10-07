@@ -1,7 +1,7 @@
 """Run a complete deterministic game and write a human-readable trace."""
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from src.nature_solo_bot.engine.action_applier import ActionApplier
@@ -10,6 +10,12 @@ from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import DIFFICULTY_MEDIUM, GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
+from src.nature_solo_bot.game.model.trait_cards import (
+    OPPORTUNISTIC,
+    SCAVENGING,
+    SOCIAL,
+    TUSKED,
+)
 from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
@@ -46,16 +52,21 @@ class FullGameLog:
         return (
             f"{self.species_id(species)} {species.solo_species.name} "
             f"(tree={species.tree_color.name}, size={species.size}, "
+            f"attack={species.attack_value}, defense={species.defense_value}, "
             f"population={species.population}, traits=[{traits}], "
             f"plant food={species.plant_food}, meat food={species.meat_food})"
         )
 
     def player_board(self, player: Player) -> None:
-        self.write(f"{player.name}: hand=[{'; '.join(self.card_name(c) for c in player.hand)}]")
+        self.write(
+            f"{player.name}: hand=[{'; '.join(self.card_name(c) for c in player.hand)}]"
+        )
         for species in player.species:
             self.write(f"  {self.species_description(species)}")
 
-    def adaptation_event(self, state: GameState, player, card: TraitCard, before) -> None:
+    def adaptation_event(
+        self, state: GameState, player, card: TraitCard, before
+    ) -> None:
         for species in player.species:
             old_size, old_population, old_traits = before[species]
             if card not in old_traits and card in species.trait_cards:
@@ -90,7 +101,7 @@ class FullGameLog:
 
 class FullGameTest(unittest.TestCase):
     def test_complete_game_writes_detailed_log(self):
-        seed = 1
+        seed = 0
         engine = GameEngine(seed=seed, difficulty=DIFFICULTY_MEDIUM)
         state = engine.setup_game()
         trace = FullGameLog()
@@ -130,6 +141,7 @@ class FullGameTest(unittest.TestCase):
         original_forage = FeedingRules.forage
         original_hunt = FeedingRules.hunt
         original_starve = FeedingRules.starve
+        original_trigger_trait_feeding = FeedingRules._trigger_trait_feeding
         original_discard = ActionApplier.discard_card_for_watering_hole
         feeding_actions: list[str] | None = None
 
@@ -153,7 +165,8 @@ class FullGameTest(unittest.TestCase):
 
         def trace_preparation() -> None:
             carryover = {
-                player: (player.lost_population, player.extinct_size) for player in state.players
+                player: (player.lost_population, player.extinct_size)
+                for player in state.players
             }
             original_preparation()
             for player in state.players:
@@ -169,9 +182,9 @@ class FullGameTest(unittest.TestCase):
                         min(1 + extinct_size, state.max_size),
                     )
                     self.assertEqual(player.extinct_size, 0)
-                solo_species_seen = [species.solo_species.name for species in player.species] + [
-                    solo_species.name for solo_species in player.solo_discard
-                ]
+                solo_species_seen = [
+                    species.solo_species.name for species in player.species
+                ] + [solo_species.name for solo_species in player.solo_discard]
                 self.assertEqual(len(solo_species_seen), len(set(solo_species_seen)))
             trace.write(f"\nROUND {state.current_round} - PREPARATION")
             trace.write(
@@ -210,7 +223,9 @@ class FullGameTest(unittest.TestCase):
             before_food = species.plant_food
             original_forage(state, species)
             amount = species.plant_food - before_food
-            record_feeding_action(f"{trace.species_id(species)} ate {amount} plant food")
+            record_feeding_action(
+                f"{trace.species_id(species)} ate {amount} plant food"
+            )
 
         def trace_hunt(state, player, species) -> bool:
             before_meat = species.meat_food
@@ -234,11 +249,69 @@ class FullGameTest(unittest.TestCase):
                 )
             return hunted
 
+        def trace_trait_trigger(
+            species_list, trait_id, food_per_trigger, food_type
+        ) -> None:
+            affected_species = list(species_list)
+            active_species = {
+                species for player in state.players for species in player.species
+            }
+            before_food = {
+                species: species.total_food
+                for species in affected_species
+                if species in active_species
+            }
+            trigger_counts = {
+                species: species.trait_count(trait_id) for species in before_food
+            }
+
+            original_trigger_trait_feeding(
+                affected_species,
+                trait_id,
+                food_per_trigger,
+                food_type,
+            )
+
+            if feeding_actions is None:
+                return
+
+            trigger_details = {
+                TUSKED.effect_id: ("Tusked", "the watering hole emptied"),
+                SCAVENGING.effect_id: ("Scavenging", "after a successful hunt"),
+                OPPORTUNISTIC.effect_id: (
+                    "Opportunistic",
+                    "after feeding while plants remained",
+                ),
+            }
+            trait_name, trigger_reason = trigger_details.get(
+                trait_id, (trait_id, "triggered")
+            )
+            for species, previous_food in before_food.items():
+                food_eaten = species.total_food - previous_food
+                if food_eaten > 0:
+                    copies = trigger_counts[species]
+                    social_copies = species.trait_count(SOCIAL.effect_id)
+                    social_details = (
+                        f"; {social_copies} Social "
+                        f"{'copy' if social_copies == 1 else 'copies'}"
+                        if social_copies
+                        else ""
+                    )
+                    record_feeding_action(
+                        f"{trace.species_id(species)} ate {food_eaten} "
+                        f"{food_type.removesuffix('_food')} food from "
+                        f"{trait_name} trigger ({copies} "
+                        f"{'copy' if copies == 1 else 'copies'}"
+                        f"{social_details}; {trigger_reason})"
+                    )
+
         def trace_starve(state, species, player) -> None:
             before_population = species.population
             original_starve(state, species, player)
             status = (
-                "extinct" if species not in player.species else f"population {species.population}"
+                "extinct"
+                if species not in player.species
+                else f"population {species.population}"
             )
             record_feeding_action(
                 f"{trace.species_id(species)} starved "
@@ -291,12 +364,18 @@ class FullGameTest(unittest.TestCase):
                 trace.write(
                     f"  {player.name} scored {food_scores[player]} food points "
                     f"(total points gained: {points_gained}"
-                    + (f", surviving-species bonus: {end_game_bonus}" if end_game_bonus else "")
+                    + (
+                        f", surviving-species bonus: {end_game_bonus}"
+                        if end_game_bonus
+                        else ""
+                    )
                     + f"); score={player.score}"
                 )
                 for species in player.species:
                     old_tree, old_traits, _ = before_species[species]
-                    lost_traits = [card for card in old_traits if card not in species.trait_cards]
+                    lost_traits = [
+                        card for card in old_traits if card not in species.trait_cards
+                    ]
                     if old_tree != species.tree_color:
                         trace.write(
                             f"    {trace.species_id(species)} tree changed "
@@ -304,11 +383,14 @@ class FullGameTest(unittest.TestCase):
                         )
                     for card in lost_traits:
                         trace.write(
-                            f"    {trace.species_id(species)} lost trait " f"'{card.trait.name}'"
+                            f"    {trace.species_id(species)} lost trait "
+                            f"'{card.trait.name}'"
                         )
 
         with (
-            patch.object(engine, "run_preparation_phase", side_effect=trace_preparation),
+            patch.object(
+                engine, "run_preparation_phase", side_effect=trace_preparation
+            ),
             patch.object(engine, "run_adaptation_phase", side_effect=trace_adaptation),
             patch.object(engine, "run_feeding_phase", side_effect=trace_feeding),
             patch.object(engine, "run_scoring_phase", side_effect=trace_scoring),
@@ -322,10 +404,17 @@ class FullGameTest(unittest.TestCase):
                 "assign_leftover_cards_to_hunters",
                 side_effect=trace_assign_leftover,
             ),
-            patch.object(FeedingRules, "take_feeding_turn", side_effect=trace_feeding_turn),
+            patch.object(
+                FeedingRules, "take_feeding_turn", side_effect=trace_feeding_turn
+            ),
             patch.object(FeedingRules, "forage", side_effect=trace_forage),
             patch.object(FeedingRules, "hunt", side_effect=trace_hunt),
             patch.object(FeedingRules, "starve", side_effect=trace_starve),
+            patch.object(
+                FeedingRules,
+                "_trigger_trait_feeding",
+                side_effect=trace_trait_trigger,
+            ),
             patch.object(
                 ActionApplier,
                 "discard_card_for_watering_hole",
@@ -338,7 +427,9 @@ class FullGameTest(unittest.TestCase):
         trace.write(
             f"Completed rounds: {completed_state.current_round - 1}; "
             f"final scores: "
-            + ", ".join(f"{player.name}={player.score}" for player in completed_state.players)
+            + ", ".join(
+                f"{player.name}={player.score}" for player in completed_state.players
+            )
         )
         winner = engine.define_winner()
         self.assertIsNotNone(winner)
@@ -359,19 +450,29 @@ class FullGameTest(unittest.TestCase):
                 ),
             ),
         )
-        self.assertEqual(completed_state.current_round, completed_state.total_rounds + 1)
+        self.assertEqual(
+            completed_state.current_round, completed_state.total_rounds + 1
+        )
         self.assertTrue(log_path.is_file())
         self.assertIn("FULL GAME SETUP", log_text)
         self.assertIn("Difficulty:", log_text)
         self.assertIn("First player:", log_text)
         self.assertIn("hand=[", log_text)
         self.assertIn("size=", log_text)
+        self.assertIn("attack=", log_text)
+        self.assertIn("defense=", log_text)
         self.assertIn("population=", log_text)
         self.assertNotIn("Solo Species", log_text)
         self.assertIn("Species at the end of adaptation:", log_text)
         self.assertRegex(log_text, r"-> S\d+ (?:trait|size|population)")
         self.assertIn("feeding turn:", log_text)
         self.assertRegex(log_text, r"ate \d+ (?:plant|meat) food")
+        self.assertIn("Tusked trigger", log_text)
+        self.assertIn("Scavenging trigger", log_text)
+        self.assertIn("Opportunistic trigger", log_text)
+        self.assertIn("the watering hole emptied", log_text)
+        self.assertIn("after a successful hunt", log_text)
+        self.assertIn("after feeding while plants remained", log_text)
         self.assertRegex(log_text, r"discarded .+ for \d+ plant food")
         self.assertRegex(log_text, r"scored \d+ food points")
         self.assertIn("tree changed", log_text)
