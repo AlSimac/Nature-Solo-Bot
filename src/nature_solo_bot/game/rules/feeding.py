@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from copy import copy
 from random import Random
 
 from ...engine.action_applier import ActionApplier
@@ -84,14 +85,16 @@ class FeedingRules:
         state: GameState,
         active_player: Player,
     ) -> list[Species]:
-        """Return hungry foragers by food yield, followed by hunters oldest-first."""
+        """Return foragers by projected total food gain, followed by hunters oldest-first."""
         available_food = FeedingRules.get_available_food(state, active_player)
         hungry_species = [species for species in active_player.species if species.is_hungry]
         foragers = [
             (
                 index,
                 species,
-                FeedingRules.plant_food_taken_in_one_forage(species, available_food),
+                FeedingRules._projected_food_gain_from_forage(
+                    state, active_player, species, available_food
+                ),
             )
             for index, species in enumerate(hungry_species)
             if not species.is_hunter
@@ -99,6 +102,55 @@ class FeedingRules:
         foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
         hunters = [species for species in hungry_species if species.is_hunter]
         return [species for _, species, _ in foragers] + hunters
+
+    @staticmethod
+    def _projected_food_gain_from_forage(
+        state: GameState,
+        active_player: Player,
+        forager: Species,
+        available_food: int,
+    ) -> int:
+        """Project this forage and its triggers, valuing each discarded card at three food."""
+        forage_amount = FeedingRules.plant_food_taken_in_one_forage(forager, available_food)
+        all_species = [species for player in state.players for species in player.species]
+        cards_to_discard = min(
+            len(active_player.hand),
+            max(0, (forage_amount - state.watering_hole_plant + 2) // 3),
+        )
+        simulated_watering_hole_food = state.watering_hole_plant + 3 * cards_to_discard
+        simulated_species = {id(species): copy(species) for species in all_species}
+        simulated_forager = simulated_species[id(forager)]
+        simulated_active_species = [
+            simulated_species[id(species)] for species in active_player.species
+        ]
+        plants_eaten = FeedingRules.eat(
+            simulated_forager,
+            PLANT,
+            simulated_forager.forage_value,
+            available_from_source=simulated_watering_hole_food,
+        )
+        remaining_food = simulated_watering_hole_food - plants_eaten
+
+        if plants_eaten > 0 and remaining_food == 0:
+            FeedingRules._trigger_trait_feeding(
+                simulated_species.values(),
+                TUSKED.effect_id,
+                1,
+                MEAT,
+            )
+
+        if remaining_food > 0:
+            FeedingRules._trigger_trait_feeding(
+                simulated_active_species,
+                OPPORTUNISTIC.effect_id,
+                2,
+                MEAT,
+            )
+
+        return sum(
+            simulated.total_food - original.total_food
+            for original, simulated in zip(active_player.species, simulated_active_species)
+        )
 
     @staticmethod
     def get_available_food(state: GameState, active_player: Player) -> int:

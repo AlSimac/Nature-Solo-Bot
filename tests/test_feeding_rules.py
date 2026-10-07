@@ -152,6 +152,81 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(state.watering_hole_plant, 2)
         self.assertEqual(opportunistic_species.meat_food, 2)
 
+    def test_forager_priority_counts_food_from_all_active_player_species(self):
+        player = Player(name="Foraging player")
+        opportunistic_forager = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_forager.size = 2
+        opportunistic_forager.population = 2
+        opportunistic_forager.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        other_forager = Species(solo_card=SoloSpecies(), round_created=1)
+        other_forager.population = 10
+        player.species.extend([opportunistic_forager, other_forager])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 10
+
+        self.assertEqual(
+            FeedingRules.choose_species_to_feed(state, player),
+            [other_forager, opportunistic_forager],
+        )
+        self.assertEqual(opportunistic_forager.total_food, 0)
+        self.assertEqual(other_forager.total_food, 0)
+
+    def test_forager_priority_counts_each_tusked_trigger(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 2
+        forager.population = 2
+        tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species.population = 2
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.extend([forager, tusked_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 2
+
+        projected_food = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+
+        self.assertEqual(projected_food, 4)
+        self.assertEqual(forager.total_food, 0)
+        self.assertEqual(tusked_species.total_food, 0)
+
+    def test_forager_priority_values_each_discarded_card_at_three_food(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 2
+        forager.population = 2
+        tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 2
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, tusked_species, opportunistic_species])
+        player.hand = [SimpleNamespace(food_value=1), SimpleNamespace(food_value=4)]
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 1
+
+        projected_food = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+
+        self.assertEqual(projected_food, 4)
+        self.assertEqual(state.watering_hole_plant, 1)
+        self.assertEqual(len(player.hand), 2)
+        self.assertEqual(forager.total_food, 0)
+        self.assertEqual(tusked_species.total_food, 0)
+        self.assertEqual(opportunistic_species.total_food, 0)
+
     def test_each_opportunistic_copy_triggers_independently(self):
         player = Player(name="Foraging player")
         forager = Species(solo_card=SoloSpecies(), round_created=1)
