@@ -1,10 +1,19 @@
+from collections.abc import Iterable
 from random import Random
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
-from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC, SCAVENGING, SOCIAL
+from ..model.trait_cards import (
+    CLAWED,
+    FAST,
+    HORNED,
+    OPPORTUNISTIC,
+    SCAVENGING,
+    SOCIAL,
+    TUSKED,
+)
 
 PLANT = "plant_food"
 MEAT = "meat_food"
@@ -48,33 +57,23 @@ class FeedingRules:
                 successful_feeding = True
 
                 # Triggering Scavenging
-                for player in state.players:
-                    for species in player.species:
-                        scavenging_count = sum(
-                            trait.effect_id == SCAVENGING.effect_id for trait in species.traits
-                        )
-
-                        for _ in range(scavenging_count):
-                            scavenged_food = min(
-                                2,
-                                max(0, species.population - species.total_food),
-                            )
-                            FeedingRules.eat(species, MEAT, scavenged_food)
+                FeedingRules._trigger_trait_feeding(
+                    (species for player in state.players for species in player.species),
+                    SCAVENGING.effect_id,
+                    2,
+                    MEAT,
+                )
 
                 break
 
         if successful_feeding:
             if state.watering_hole_plant > 0:
-                for species in active_player.species:
-                    opportunistic_count = sum(
-                        trait.effect_id == OPPORTUNISTIC.effect_id for trait in species.traits
-                    )
-                    for _ in range(opportunistic_count):
-                        opportunistic_food = min(
-                            2,
-                            max(0, species.population - species.total_food),
-                        )
-                        FeedingRules.eat(species, MEAT, opportunistic_food)
+                FeedingRules._trigger_trait_feeding(
+                    active_player.species,
+                    OPPORTUNISTIC.effect_id,
+                    2,
+                    MEAT,
+                )
 
         else:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
@@ -135,7 +134,7 @@ class FeedingRules:
             forager.forage_value,
             available_from_source=state.watering_hole_plant,
         )
-        state.watering_hole_plant -= plants_eaten
+        FeedingRules.remove_watering_hole_food(state, plants_eaten, PLANT)
 
     def hunt(state: GameState, player: Player, hunter: Species):
         """Hunt feeding action"""
@@ -175,6 +174,44 @@ class FeedingRules:
             sum(prey.size for trait in prey.traits if trait.effect_id == HORNED.effect_id),
             hunting_species.population,
         )
+
+    @staticmethod
+    def remove_watering_hole_food(
+        state: GameState,
+        amount: int,
+        food_type: str,
+    ) -> None:
+        """Remove food from the watering hole."""
+        if food_type != PLANT:
+            return
+
+        plants_to_remove = min(max(0, amount), state.watering_hole_plant)
+
+        if plants_to_remove == 0:
+            return
+
+        state.watering_hole_plant -= plants_to_remove
+
+        if state.watering_hole_plant == 0:
+            FeedingRules._trigger_trait_feeding(
+                (species for player in state.players for species in player.species),
+                TUSKED.effect_id,
+                1,
+                MEAT,
+            )
+
+    @staticmethod
+    def _trigger_trait_feeding(
+        species_list: Iterable[Species], trait_id: str, food_per_trigger: int, food_type: str
+    ) -> None:
+        """Managed the triggered effects that make a species eat."""
+        for species in species_list:
+            for _ in range(species.trait_count(trait_id)):
+                food_to_eat = min(
+                    food_per_trigger,
+                    max(0, species.population - species.total_food),
+                )
+                FeedingRules.eat(species, food_type, food_to_eat)
 
     @staticmethod
     def _food_amount_to_eat(

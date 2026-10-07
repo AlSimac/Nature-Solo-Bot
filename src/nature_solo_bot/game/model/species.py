@@ -86,6 +86,11 @@ class Species:
         self.trait_cards[card_index] = new_card
         return True
 
+    def trait_count(self, trait_id: str):
+        return sum(
+            trait.effect_id == trait_id for trait in self.traits
+        )
+
     def switch_tree_color(self):
         """Switch the tree color of the species."""
         if self.tree_color == TreeColor.PINK:

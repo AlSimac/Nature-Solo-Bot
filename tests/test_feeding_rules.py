@@ -17,6 +17,7 @@ from src.nature_solo_bot.game.model.trait_cards import (
     PLATED,
     SCAVENGING,
     SOCIAL,
+    TUSKED,
 )
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
@@ -348,6 +349,85 @@ class FeedingRulesTest(unittest.TestCase):
 
         self.assertEqual(food_eaten, 5)
         self.assertEqual(species.meat_food, 5)
+
+    def test_tusked_triggers_only_when_watering_hole_transitions_to_empty(self):
+        player = Player(name="Tusked player")
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        species.population = 5
+        species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.append(species)
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.remove_watering_hole_food(state, 2, "plant_food")
+        self.assertEqual(state.watering_hole_plant, 1)
+        self.assertEqual(species.meat_food, 0)
+
+        FeedingRules.remove_watering_hole_food(state, 1, "plant_food")
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(species.meat_food, 1)
+
+        FeedingRules.remove_watering_hole_food(state, 1, "plant_food")
+        self.assertEqual(species.meat_food, 1)
+
+    def test_tusked_does_not_trigger_for_zero_removal_or_empty_hole(self):
+        player = Player(name="Tusked player")
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        species.population = 5
+        species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.append(species)
+        state = GameState()
+        state.players = [player]
+
+        FeedingRules.remove_watering_hole_food(state, 0, "plant_food")
+        self.assertEqual(species.meat_food, 0)
+
+        state.watering_hole_plant = 2
+        FeedingRules.remove_watering_hole_food(state, 0, "plant_food")
+        self.assertEqual(state.watering_hole_plant, 2)
+        self.assertEqual(species.meat_food, 0)
+
+    def test_forage_triggers_tusked_when_it_removes_the_last_plant(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species.population = 2
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.extend([forager, tusked_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 1
+
+        FeedingRules.forage(state, forager)
+
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(tusked_species.meat_food, 1)
+
+    def test_tusked_copies_and_social_trigger_for_all_players(self):
+        first_player = Player(name="First")
+        second_player = Player(name="Second")
+        tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species.population = 10
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        tusked_species.add_trait_card(TraitCard(SOCIAL), max_traits=3)
+        other_tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        other_tusked_species.population = 3
+        other_tusked_species.meat_food = 2
+        other_tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        first_player.species.append(tusked_species)
+        second_player.species.append(other_tusked_species)
+        state = GameState()
+        state.players = [first_player, second_player]
+        state.watering_hole_plant = 1
+
+        FeedingRules.remove_watering_hole_food(state, 5, "plant_food")
+
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(tusked_species.meat_food, 6)
+        self.assertEqual(other_tusked_species.meat_food, 3)
 
     def test_forage_yield_estimate_matches_eating_with_social_and_clawed(self):
         forager = Species(solo_card=SoloSpecies(), round_created=1)
