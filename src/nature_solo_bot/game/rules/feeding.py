@@ -1,11 +1,10 @@
 from random import Random
 
-from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC, SCAVENGING
-
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
+from ..model.trait_cards import CLAWED, FAST, HORNED, OPPORTUNISTIC, SCAVENGING, SOCIAL
 
 PLANT = "plant_food"
 MEAT = "meat_food"
@@ -56,11 +55,11 @@ class FeedingRules:
                         )
 
                         for _ in range(scavenging_count):
-                            extra_food = min(
+                            scavenged_food = min(
                                 2,
                                 max(0, species.population - species.total_food),
                             )
-                            FeedingRules.eat(species, MEAT, extra_food)
+                            FeedingRules.eat(species, MEAT, scavenged_food)
 
                 break
 
@@ -71,11 +70,11 @@ class FeedingRules:
                         trait.effect_id == OPPORTUNISTIC.effect_id for trait in species.traits
                     )
                     for _ in range(opportunistic_count):
-                        extra_food = min(
+                        opportunistic_food = min(
                             2,
                             max(0, species.population - species.total_food),
                         )
-                        FeedingRules.eat(species, MEAT, extra_food)
+                        FeedingRules.eat(species, MEAT, opportunistic_food)
 
         else:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
@@ -130,11 +129,13 @@ class FeedingRules:
 
     def forage(state: GameState, forager: Species):
         """Forage feeding action"""
-        plant_food_taken = FeedingRules.plant_food_taken_in_one_forage(
-            forager, state.watering_hole_plant
+        plants_eaten = FeedingRules.eat(
+            forager,
+            PLANT,
+            forager.forage_value,
+            available_from_source=state.watering_hole_plant,
         )
-        state.watering_hole_plant -= plant_food_taken
-        FeedingRules.eat(forager, PLANT, plant_food_taken)
+        state.watering_hole_plant -= plants_eaten
 
     def hunt(state: GameState, player: Player, hunter: Species):
         """Hunt feeding action"""
@@ -158,11 +159,8 @@ class FeedingRules:
             raise ValueError("The selected prey does not belong to a player in the game state.")
 
         hunter_loss = FeedingRules.hunter_loss_caused_by_prey(chosen_prey, hunter)
-
         # Actual hunt action
-        FeedingRules.eat(
-            hunter, MEAT, min(chosen_prey.size, (hunter.population - hunter.total_food))
-        )
+        FeedingRules.eat(hunter, MEAT, chosen_prey.size)
         ActionApplier.kill_one_population(state, chosen_prey, prey_owner)
 
         if hunter_loss > 0:
@@ -178,13 +176,47 @@ class FeedingRules:
             hunting_species.population,
         )
 
-    def eat(species: Species, food_type: str, food_taken: int):
-        """Define the eat action"""
-        if food_type == PLANT:
-            species.plant_food += food_taken
+    @staticmethod
+    def _food_amount_to_eat(
+        species: Species,
+        food_type: str,
+        base_amount: int,
+        available_from_source: int | None = None,
+    ) -> int:
+        social_count = sum(trait.effect_id == SOCIAL.effect_id for trait in species.traits)
+        bonus = 2 * social_count
 
-        elif food_type == MEAT:
-            species.meat_food += food_taken
+        if food_type == PLANT:
+            clawed_count = sum(trait.effect_id == CLAWED.effect_id for trait in species.traits)
+            bonus += 2 * clawed_count
+
+        limits = [
+            base_amount + bonus,
+            max(0, species.population - species.total_food),
+        ]
+
+        if available_from_source is not None:
+            limits.append(max(0, available_from_source))
+
+        return min(limits)
+
+    @staticmethod
+    def eat(
+        species: Species,
+        food_type: str,
+        base_amount: int,
+        available_from_source: int | None = None,
+    ) -> int:
+        amount = FeedingRules._food_amount_to_eat(
+            species, food_type, base_amount, available_from_source
+        )
+
+        if food_type == PLANT:
+            species.plant_food += amount
+        else:
+            species.meat_food += amount
+
+        return amount
 
     def starve(state: GameState, species: Species, player: Player):
         """Define the starve action"""
@@ -192,12 +224,11 @@ class FeedingRules:
 
     @staticmethod
     def plant_food_taken_in_one_forage(species: Species, available_food: int) -> int:
-        clawed_count = sum(1 for trait in species.traits if trait.effect_id == CLAWED.effect_id)
-
-        return min(
-            species.forage_value + 2 * clawed_count,
-            max(0, species.population - species.total_food),
-            available_food,
+        return FeedingRules._food_amount_to_eat(
+            species,
+            PLANT,
+            species.forage_value,
+            available_from_source=available_food,
         )
 
     @staticmethod

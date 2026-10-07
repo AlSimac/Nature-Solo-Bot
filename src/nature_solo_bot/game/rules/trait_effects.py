@@ -1,6 +1,6 @@
 from ..model.species import Species
-from ..model.trait import EffectTiming
 from ..model.state import GameState
+from ..model.trait import EffectTiming
 
 
 class TraitEffectRules:

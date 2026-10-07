@@ -1,11 +1,10 @@
 from random import Random
 
 from ..model.card import Card
-from ..model.player import Player
-from ..model.species import Species
-from ..model.solo_species import SoloEffect
 from ..model.hunter_card import HunterCard
-from ..model.trait_card import TraitCard
+from ..model.player import Player
+from ..model.solo_species import SoloEffect
+from ..model.species import Species
 from ..model.state import GameState
 
 

@@ -145,7 +145,6 @@ class GameEngineTest(unittest.TestCase):
 
 import unittest
 
-from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.state import GamePhase
 
 

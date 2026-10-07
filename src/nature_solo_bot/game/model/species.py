@@ -1,8 +1,8 @@
 from enum import Enum
 
-from .trait_card import TraitCard
 from .solo_species import SoloSpecies
 from .trait import Trait
+from .trait_card import TraitCard
 from .trait_cards import HUNTER
 
 

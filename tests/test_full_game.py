@@ -1,7 +1,7 @@
 """Run a complete deterministic game and write a human-readable trace."""
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from src.nature_solo_bot.engine.action_applier import ActionApplier

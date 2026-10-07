@@ -1,4 +1,4 @@
-from .trait import EffectTiming, Trait, TraitEffect
+from .trait import Trait
 
 # Hunter trait
 HUNTER = Trait(
