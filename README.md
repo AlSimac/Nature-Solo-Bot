@@ -64,3 +64,15 @@ not unique game-rounds. Duplicate copies are preserved (for example,
 extinctions during feeding, total and average food eaten per species-round,
 starting population at the start of feeding, and population lost by the end of
 feeding. Extinct species count as losing their full starting population.
+
+To aggregate the same metrics by Solo species card instead of by trait
+combination, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.analyze_traits output\core\hardest --solo-species --output output\core\hardest\solo_species_stats.csv
+```
+
+Every species-round contributes one observation to its Solo species card's
+totals. The report includes its number of species-round appearances,
+extinctions during feeding, total and average food eaten per species-round,
+starting population, and population lost by the end of feeding.

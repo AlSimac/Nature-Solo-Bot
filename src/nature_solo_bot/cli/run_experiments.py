@@ -2,15 +2,10 @@
 
 import argparse
 from collections.abc import Sequence
+from pathlib import Path
 
 from ..experiments import BatchRunner
-from ..game.model.state import (
-    DIFFICULTY_EASIEST,
-    DIFFICULTY_EASY,
-    DIFFICULTY_HARD,
-    DIFFICULTY_HARDEST,
-    DIFFICULTY_MEDIUM,
-)
+from ..game.model.state import Difficulty
 
 
 class RunExperiments:
@@ -24,8 +19,8 @@ class RunExperiments:
         parser.add_argument(
             "--games",
             type=int,
-            default=1000,
-            help="number of games to run (default: 1000)",
+            default=10000,
+            help="number of games to run (default: 10000)",
         )
         parser.add_argument(
             "--start-seed",
@@ -46,33 +41,67 @@ class RunExperiments:
         )
         parser.add_argument(
             "--output-dir",
-            default="output/core",
-            help="directory for game logs (default: output)",
+            help="directory for game logs (defaults to output/Nature/<difficulty>/<core-or-promo>)",
         )
         options = parser.parse_args(arguments)
         if options.games <= 0:
             parser.error("--games must be greater than zero")
 
         difficulties = {
-            "easiest": DIFFICULTY_EASIEST,
-            "easy": DIFFICULTY_EASY,
-            "medium": DIFFICULTY_MEDIUM,
-            "hard": DIFFICULTY_HARD,
-            "hardest": DIFFICULTY_HARDEST,
+            "easiest": Difficulty.EASIEST,
+            "easy": Difficulty.EASY,
+            "medium": Difficulty.MEDIUM,
+            "hard": Difficulty.HARD,
+            "hardest": Difficulty.HARDEST,
         }
+        output_directory = options.output_dir or str(
+            Path("output")
+            / "Nature"
+            / options.difficulty
+            / ("promo" if options.promo else "core")
+        )
         log_paths = BatchRunner(
             game_count=options.games,
             start_seed=options.start_seed,
             difficulty=difficulties[options.difficulty],
             promo=options.promo,
-        ).run(options.output_dir)
-        print(f"Saved {len(log_paths)} game logs to {options.output_dir}")
+        ).run(output_directory)
+        print(f"Saved {len(log_paths)} game logs to {output_directory}")
+        return 0
+
+    @staticmethod
+    def run_loop() -> int:
+        """Run batches for every difficulty, both with and without promo cards."""
+        for difficulty in Difficulty:
+            difficulty_name = difficulty.name.lower()
+
+            for promo in (False, True):
+                arguments = [
+                    "--difficulty",
+                    difficulty_name,
+                    "--output-dir",
+                    str(
+                        Path("output")
+                        / "Nature"
+                        / difficulty_name
+                        / ("promo" if promo else "core")
+                    ),
+                ]
+
+                if promo:
+                    arguments.append("--promo")
+
+                exit_code = RunExperiments.run(arguments)
+
+                if exit_code != 0:
+                    return exit_code
+
         return 0
 
 
 def main() -> int:
     """Run the CLI using the process command-line arguments."""
-    return RunExperiments.run()
+    return RunExperiments.run_loop()
 
 
 if __name__ == "__main__":

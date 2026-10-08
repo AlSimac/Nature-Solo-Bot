@@ -14,25 +14,24 @@ class GamePhase(Enum):
     SCORING = "scoring"
 
 
-@dataclass(frozen=True, slots=True)
-class Difficulty:
+class Difficulty(Enum):
     """Starting-game settings controlled by the selected difficulty."""
 
-    round_one_population: int
-    cards_to_draw: int
+    EASIEST = (1, 5)
+    EASY = (2, 6)
+    MEDIUM = (3, 7)
+    HARD = (4, 8)
+    HARDEST = (5, 9)
 
-
-DIFFICULTY_EASIEST = Difficulty(round_one_population=1, cards_to_draw=5)
-DIFFICULTY_EASY = Difficulty(round_one_population=2, cards_to_draw=6)
-DIFFICULTY_MEDIUM = Difficulty(round_one_population=3, cards_to_draw=7)
-DIFFICULTY_HARD = Difficulty(round_one_population=4, cards_to_draw=8)
-DIFFICULTY_HARDEST = Difficulty(round_one_population=5, cards_to_draw=9)
+    def __init__(self, round_one_population: int, cards_to_draw: int) -> None:
+        self.round_one_population = round_one_population
+        self.cards_to_draw = cards_to_draw
 
 
 class GameState:
     """Stores a complete snapshot of a game at any moment in time."""
 
-    def __init__(self, difficulty: Difficulty = DIFFICULTY_MEDIUM):
+    def __init__(self, difficulty: Difficulty = Difficulty.MEDIUM):
         """Initialize a fresh game state."""
         self.current_round: int = 0
         self.total_rounds: int = 4

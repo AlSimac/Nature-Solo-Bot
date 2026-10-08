@@ -2,6 +2,7 @@
 
 from .game_logger import GameLogger
 from .trait_assignment_parser import (
+    SoloSpeciesStats,
     TraitAssignmentCounts,
     TraitAssignmentParser,
     TraitCombinationStats,
@@ -14,4 +15,5 @@ __all__ = [
     "TraitAssignmentParser",
     "TraitCombinationStats",
     "TraitRoundFoodStats",
+    "SoloSpeciesStats",
 ]

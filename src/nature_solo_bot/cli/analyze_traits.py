@@ -3,12 +3,21 @@
 import argparse
 import csv
 from pathlib import Path
+from typing import TypeAlias
 
 from ..analysis import (
+    SoloSpeciesStats,
     TraitAssignmentCounts,
     TraitAssignmentParser,
     TraitCombinationStats,
     TraitRoundFoodStats,
+)
+
+AnalysisCounts: TypeAlias = (
+    dict[str, TraitAssignmentCounts]
+    | dict[str, dict[int, TraitRoundFoodStats]]
+    | dict[tuple[str, ...], TraitCombinationStats]
+    | dict[str, SoloSpeciesStats]
 )
 
 
@@ -72,6 +81,35 @@ def _write_combination_csv(
         )
 
 
+def _write_solo_species_csv(
+    writer,
+    counts: dict[str, SoloSpeciesStats],
+) -> None:
+    writer.writerow(
+        (
+            "solo_species",
+            "species_rounds_present",
+            "times_extinct",
+            "total_food",
+            "average_food_per_species_round",
+            "total_population_at_start_of_feeding",
+            "total_lost_population",
+        )
+    )
+    for solo_species, stats in counts.items():
+        writer.writerow(
+            (
+                solo_species,
+                stats.species_rounds_present,
+                stats.times_extinct,
+                stats.total_food,
+                f"{stats.average_food_per_round:.2f}",
+                stats.total_population_at_start_of_feeding,
+                stats.total_lost_population,
+            )
+        )
+
+
 def _print_assignment_counts(counts: dict[str, TraitAssignmentCounts]) -> None:
     print("Trait | Winner assignments | Loser assignments | Tied-game assignments")
     for trait, trait_counts in counts.items():
@@ -110,6 +148,60 @@ def _print_combination_counts(
         )
 
 
+def _print_solo_species_counts(counts: dict[str, SoloSpeciesStats]) -> None:
+    print(
+        "Solo species | Species-rounds present | Extinctions | Total food | "
+        "Average food/species-round | Starting population | Population lost"
+    )
+    for solo_species, stats in counts.items():
+        print(
+            f"{solo_species} | {stats.species_rounds_present} | "
+            f"{stats.times_extinct} | {stats.total_food} | "
+            f"{stats.average_food_per_round:.2f} | "
+            f"{stats.total_population_at_start_of_feeding} | "
+            f"{stats.total_lost_population}"
+        )
+
+
+def _parse_counts(options: argparse.Namespace) -> AnalysisCounts:
+    trait_parser = TraitAssignmentParser()
+    if options.solo_species:
+        return trait_parser.parse_solo_species(options.log_directory)
+    if options.trait_combinations:
+        return trait_parser.parse_trait_combinations(options.log_directory)
+    if options.food_by_trait:
+        return trait_parser.parse_food_by_trait(options.log_directory)
+    return trait_parser.parse_folder(options.log_directory)
+
+
+def _save_counts(options: argparse.Namespace, counts: AnalysisCounts) -> None:
+    if options.output is None:
+        return
+
+    options.output.parent.mkdir(parents=True, exist_ok=True)
+    with options.output.open("w", encoding="utf-8", newline="") as output_file:
+        writer = csv.writer(output_file)
+        if options.solo_species:
+            _write_solo_species_csv(writer, counts)
+        elif options.trait_combinations:
+            _write_combination_csv(writer, counts)
+        elif options.food_by_trait:
+            _write_food_csv(writer, counts)
+        else:
+            _write_assignment_csv(writer, counts)
+
+
+def _display_counts(options: argparse.Namespace, counts: AnalysisCounts) -> None:
+    if options.solo_species:
+        _print_solo_species_counts(counts)
+    elif options.trait_combinations:
+        _print_combination_counts(counts)
+    elif options.food_by_trait:
+        _print_food_counts(counts)
+    else:
+        _print_assignment_counts(counts)
+
+
 def main() -> int:
     """Parse game logs and print or export trait assignment counts."""
     parser = argparse.ArgumentParser(
@@ -136,36 +228,20 @@ def main() -> int:
         action="store_true",
         help="report round, extinction, food, and population stats by trait combination",
     )
+    analysis_group.add_argument(
+        "--solo-species",
+        action="store_true",
+        help="report round, extinction, food, and population stats by Solo species card",
+    )
     options = parser.parse_args()
 
     try:
-        trait_parser = TraitAssignmentParser()
-        if options.trait_combinations:
-            counts = trait_parser.parse_trait_combinations(options.log_directory)
-        elif options.food_by_trait:
-            counts = trait_parser.parse_food_by_trait(options.log_directory)
-        else:
-            counts = trait_parser.parse_folder(options.log_directory)
+        counts = _parse_counts(options)
     except ValueError as error:
         parser.error(str(error))
 
-    if options.output is not None:
-        options.output.parent.mkdir(parents=True, exist_ok=True)
-        with options.output.open("w", encoding="utf-8", newline="") as output_file:
-            writer = csv.writer(output_file)
-            if options.trait_combinations:
-                _write_combination_csv(writer, counts)
-            elif options.food_by_trait:
-                _write_food_csv(writer, counts)
-            else:
-                _write_assignment_csv(writer, counts)
-
-    if options.trait_combinations:
-        _print_combination_counts(counts)
-    elif options.food_by_trait:
-        _print_food_counts(counts)
-    else:
-        _print_assignment_counts(counts)
+    _save_counts(options, counts)
+    _display_counts(options, counts)
 
     if options.output is not None:
         print(f"CSV saved to {options.output}")

@@ -13,6 +13,10 @@ _SPECIES_BOARD_PATTERN = re.compile(
     r"^\s+(?P<species>S\d+) .+ population=(?P<population>\d+), "
     r"traits=\[(?P<traits>[^]]*)\]"
 )
+_SOLO_SPECIES_BOARD_PATTERN = re.compile(
+    r"^\s+(?P<species>S\d+) (?P<solo_species>.+?) \(tree=.* "
+    r"population=(?P<population>\d+), traits=\["
+)
 _FOOD_EATEN_PATTERN = re.compile(
     r"^\s+(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat) food\b"
 )
@@ -55,6 +59,24 @@ class TraitCombinationStats:
     @property
     def average_food_per_round(self) -> float:
         """Average food eaten by a species carrying this combination per round."""
+        if self.species_rounds_present == 0:
+            return 0.0
+        return self.total_food / self.species_rounds_present
+
+
+@dataclass(slots=True)
+class SoloSpeciesStats:
+    """Round, feeding, extinction, and population totals for one Solo species."""
+
+    species_rounds_present: int = 0
+    times_extinct: int = 0
+    total_food: int = 0
+    total_population_at_start_of_feeding: int = 0
+    total_lost_population: int = 0
+
+    @property
+    def average_food_per_round(self) -> float:
+        """Average food eaten by a species per round it was present."""
         if self.species_rounds_present == 0:
             return 0.0
         return self.total_food / self.species_rounds_present
@@ -146,6 +168,24 @@ class TraitAssignmentParser:
         )
         for log_path in log_paths:
             self._parse_combination_log(log_path, totals)
+        return dict(sorted(totals.items()))
+
+    def parse_solo_species(
+        self,
+        folder: str | Path,
+    ) -> dict[str, SoloSpeciesStats]:
+        """Aggregate round, food, extinction, and population stats per Solo card."""
+        directory = Path(folder)
+        if not directory.is_dir():
+            raise ValueError(f"Log folder does not exist or is not a directory: {directory}")
+
+        log_paths = sorted(directory.rglob("gamelog_*.log"))
+        if not log_paths:
+            raise ValueError(f"No game log files found under: {directory}")
+
+        totals: defaultdict[str, SoloSpeciesStats] = defaultdict(SoloSpeciesStats)
+        for log_path in log_paths:
+            self._parse_solo_species_log(log_path, totals)
         return dict(sorted(totals.items()))
 
     @staticmethod
@@ -347,6 +387,72 @@ class TraitAssignmentParser:
                     surviving_state[1] if surviving_state is not None else 0
                 )
                 stats = totals[combination]
+                stats.species_rounds_present += 1
+                stats.total_food += food_by_species[species_id]
+                stats.total_population_at_start_of_feeding += starting_population
+                stats.total_lost_population += max(
+                    0,
+                    starting_population - surviving_population,
+                )
+                if surviving_state is None:
+                    stats.times_extinct += 1
+
+    @staticmethod
+    def _read_solo_species_states(
+        lines: list[str],
+    ) -> dict[str, tuple[str, int]]:
+        states: dict[str, tuple[str, int]] = {}
+        for line in lines:
+            match = _SOLO_SPECIES_BOARD_PATTERN.match(line)
+            if match is not None:
+                states[match.group("species")] = (
+                    match.group("solo_species"),
+                    int(match.group("population")),
+                )
+        return states
+
+    @staticmethod
+    def _parse_solo_species_log(
+        log_path: Path,
+        totals: defaultdict[str, SoloSpeciesStats],
+    ) -> None:
+        sections = TraitAssignmentParser._read_round_sections(log_path)
+        if not sections:
+            raise ValueError(f"No round data found in {log_path}")
+
+        for round_number, round_sections in sections.items():
+            if "ADAPTATION" not in round_sections or "FEEDING" not in round_sections:
+                raise ValueError(
+                    f"Incomplete adaptation or feeding data in {log_path} "
+                    f"for round {round_number}"
+                )
+            if "Species at the end of adaptation:" not in round_sections["ADAPTATION"]:
+                raise ValueError(
+                    f"Missing post-adaptation species board in {log_path}, "
+                    f"round {round_number}"
+                )
+            if not any(
+                line.startswith("Watering hole after feeding:")
+                for line in round_sections["FEEDING"]
+            ):
+                raise ValueError(
+                    f"Missing completed feeding phase in {log_path}, round {round_number}"
+                )
+
+            starting_species = TraitAssignmentParser._read_solo_species_states(
+                round_sections["ADAPTATION"]
+            )
+            surviving_species = TraitAssignmentParser._read_solo_species_states(
+                round_sections["FEEDING"]
+            )
+            food_by_species = TraitAssignmentParser._read_food_totals(
+                round_sections["FEEDING"]
+            )
+
+            for species_id, (solo_species, starting_population) in starting_species.items():
+                surviving_state = surviving_species.get(species_id)
+                surviving_population = surviving_state[1] if surviving_state else 0
+                stats = totals[solo_species]
                 stats.species_rounds_present += 1
                 stats.total_food += food_by_species[species_id]
                 stats.total_population_at_start_of_feeding += starting_population

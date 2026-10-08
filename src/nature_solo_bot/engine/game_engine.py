@@ -7,7 +7,6 @@ from ..game.model.card import Card
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import (
-    DIFFICULTY_MEDIUM,
     Difficulty,
     GamePhase,
     GameState,
@@ -28,7 +27,7 @@ class GameEngine:
     def __init__(
         self,
         seed: int | None = None,
-        difficulty: Difficulty = DIFFICULTY_MEDIUM,
+        difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
     ):
         self.seed = seed

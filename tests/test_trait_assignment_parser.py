@@ -178,6 +178,57 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(stats[("Fast",)].species_rounds_present, 1)
         self.assertEqual(stats[("Fast",)].total_lost_population, 0)
 
+    def test_aggregates_food_extinctions_and_population_by_solo_species(self):
+        log_lines = (
+            "FULL GAME SETUP",
+            "Players: Rani, Radwin",
+            "ROUND 1 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, attack=1, defense=1, "
+            "population=4, traits=[Fast], plant food=0, meat food=0)",
+            "  S2 Glutton (tree=PINK, size=1, attack=1, defense=1, "
+            "population=3, traits=[none], plant food=0, meat food=0)",
+            "  S3 Evader (tree=PINK, size=1, attack=1, defense=1, "
+            "population=2, traits=[Social], plant food=0, meat food=0)",
+            "ROUND 1 - FEEDING",
+            "  S1 ate 2 plant food",
+            "  S3 ate 1 meat food by hunting",
+            "Watering hole after feeding: 0",
+            "  Rani species after feeding:",
+            "    S1 Evader (tree=PINK, size=1, attack=1, defense=1, "
+            "population=3, traits=[Fast], plant food=2, meat food=0); fed=2/3",
+            "ROUND 1 - SCORING",
+            "ROUND 2 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, attack=1, defense=1, "
+            "population=3, traits=[Fast], plant food=0, meat food=0)",
+            "ROUND 2 - FEEDING",
+            "Watering hole after feeding: 0",
+            "  Rani species after feeding:",
+            "    S1 Evader (tree=PINK, size=1, attack=1, defense=1, "
+            "population=3, traits=[Fast], plant food=0, meat food=0); fed=0/3",
+            "ROUND 2 - SCORING",
+            "GAME COMPLETE",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_test.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+
+            stats = TraitAssignmentParser().parse_solo_species(temporary_directory)
+
+        self.assertEqual(stats["Evader"].species_rounds_present, 3)
+        self.assertEqual(stats["Evader"].times_extinct, 1)
+        self.assertEqual(stats["Evader"].total_food, 3)
+        self.assertEqual(stats["Evader"].average_food_per_round, 1)
+        self.assertEqual(stats["Evader"].total_population_at_start_of_feeding, 9)
+        self.assertEqual(stats["Evader"].total_lost_population, 3)
+        self.assertEqual(stats["Glutton"].species_rounds_present, 1)
+        self.assertEqual(stats["Glutton"].times_extinct, 1)
+        self.assertEqual(stats["Glutton"].total_lost_population, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

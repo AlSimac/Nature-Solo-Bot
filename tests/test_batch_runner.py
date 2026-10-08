@@ -3,12 +3,13 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.nature_solo_bot.analysis import GameLogger
 from src.nature_solo_bot.cli.run_experiments import RunExperiments
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.experiments import BatchRunner
-from src.nature_solo_bot.game.model.state import DIFFICULTY_EASY, DIFFICULTY_MEDIUM
+from src.nature_solo_bot.game.model.state import Difficulty
 
 
 class BatchRunnerTest(unittest.TestCase):
@@ -18,7 +19,7 @@ class BatchRunnerTest(unittest.TestCase):
             runner = BatchRunner(
                 game_count=3,
                 start_seed=10,
-                difficulty=DIFFICULTY_EASY,
+                difficulty=Difficulty.EASY,
                 promo=True,
             )
 
@@ -48,9 +49,9 @@ class BatchRunnerTest(unittest.TestCase):
             log_path = Path(temporary_directory) / "gamelog.log"
             baseline_state = GameEngine(
                 seed=0,
-                difficulty=DIFFICULTY_MEDIUM,
+                difficulty=Difficulty.MEDIUM,
             ).run_game()
-            engine = GameEngine(seed=0, difficulty=DIFFICULTY_MEDIUM)
+            engine = GameEngine(seed=0, difficulty=Difficulty.MEDIUM)
 
             completed_state = GameLogger().run_game(
                 engine,
@@ -100,6 +101,28 @@ class BatchRunnerTest(unittest.TestCase):
         self.assertTrue(any("Seed: 20" in content for content in contents))
         self.assertTrue(any("Seed: 21" in content for content in contents))
         self.assertTrue(all("Promo cards: True" in content for content in contents))
+
+    def test_cli_run_loop_runs_each_difficulty_with_separate_promo_outputs(self):
+        with patch.object(RunExperiments, "run", return_value=0) as run:
+            exit_code = RunExperiments.run_loop()
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(run.call_count, 10)
+        arguments = [call.args[0] for call in run.call_args_list]
+        output_directories = [
+            args[args.index("--output-dir") + 1] for args in arguments
+        ]
+        self.assertEqual(len(set(output_directories)), 10)
+        for args in arguments:
+            difficulty = args[args.index("--difficulty") + 1]
+            self.assertIn(difficulty, {"easiest", "easy", "medium", "hard", "hardest"})
+            output_path = Path(args[args.index("--output-dir") + 1])
+            self.assertEqual(output_path.parts[:2], ("output", "Nature"))
+            self.assertEqual(output_path.parts[2], difficulty)
+            self.assertEqual(
+                output_path.parts[3],
+                "promo" if "--promo" in args else "core",
+            )
 
 
 if __name__ == "__main__":

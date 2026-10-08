@@ -5,21 +5,14 @@ from uuid import uuid4
 
 from ..analysis.game_logger import GameLogger
 from ..engine.game_engine import GameEngine
-from ..game.model.state import (
-    DIFFICULTY_EASIEST,
-    DIFFICULTY_EASY,
-    DIFFICULTY_HARD,
-    DIFFICULTY_HARDEST,
-    DIFFICULTY_MEDIUM,
-    Difficulty,
-)
+from ..game.model.state import Difficulty
 
 _DIFFICULTY_IDS = {
-    DIFFICULTY_EASIEST: 0,
-    DIFFICULTY_EASY: 1,
-    DIFFICULTY_MEDIUM: 2,
-    DIFFICULTY_HARD: 3,
-    DIFFICULTY_HARDEST: 4,
+    Difficulty.EASIEST: 0,
+    Difficulty.EASY: 1,
+    Difficulty.MEDIUM: 2,
+    Difficulty.HARD: 3,
+    Difficulty.HARDEST: 4,
 }
 
 
@@ -31,7 +24,7 @@ class BatchRunner:
         game_count: int = 1000,
         *,
         start_seed: int = 1,
-        difficulty: Difficulty = DIFFICULTY_MEDIUM,
+        difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
     ) -> None:
         if game_count <= 0:
