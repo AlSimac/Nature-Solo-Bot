@@ -64,6 +64,9 @@ not unique game-rounds. Duplicate copies are preserved (for example,
 extinctions during feeding, total and average food eaten per species-round,
 starting population at the start of feeding, and population lost by the end of
 feeding. Extinct species count as losing their full starting population.
+Species with no traits are included under `No traits`. Game logs also report
+how many Avid Forager cards were present in the Nature deck, including the
+setup food card, to make Promo deck contents easy to verify.
 
 To aggregate the same metrics by Solo species card instead of by trait
 combination, run:

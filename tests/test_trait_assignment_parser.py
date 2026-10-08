@@ -145,6 +145,8 @@ class TraitAssignmentParserTest(unittest.TestCase):
             "population=2, traits=[Fast, Social, Social], plant food=0, meat food=0)",
             "  S3 SpeciesC (tree=PINK, size=1, attack=1, defense=1, "
             "population=2, traits=[Fast], plant food=0, meat food=0)",
+            "  S4 SpeciesD (tree=PINK, size=1, attack=1, defense=1, "
+            "population=1, traits=[none], plant food=0, meat food=0)",
             "ROUND 1 - FEEDING",
             "  S1 ate 2 plant food",
             "  S1 ate 1 meat food by hunting",
@@ -177,6 +179,11 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(stats[duplicate_combo].total_lost_population, 3)
         self.assertEqual(stats[("Fast",)].species_rounds_present, 1)
         self.assertEqual(stats[("Fast",)].total_lost_population, 0)
+        self.assertEqual(stats[()].species_rounds_present, 1)
+        self.assertEqual(stats[()].times_extinct, 1)
+        self.assertEqual(stats[()].total_food, 0)
+        self.assertEqual(stats[()].total_population_at_start_of_feeding, 1)
+        self.assertEqual(stats[()].total_lost_population, 1)
 
     def test_aggregates_food_extinctions_and_population_by_solo_species(self):
         log_lines = (

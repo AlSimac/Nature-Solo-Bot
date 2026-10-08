@@ -68,9 +68,10 @@ def _write_combination_csv(
         )
     )
     for combination, stats in counts.items():
+        combination_name = "No traits" if not combination else " + ".join(combination)
         writer.writerow(
             (
-                " + ".join(combination),
+                combination_name,
                 stats.species_rounds_present,
                 stats.times_extinct,
                 stats.total_food,
@@ -139,8 +140,9 @@ def _print_combination_counts(
         "Average food/species-round | Starting population | Population lost"
     )
     for combination, stats in counts.items():
+        combination_name = "No traits" if not combination else " + ".join(combination)
         print(
-            f"{' + '.join(combination)} | {stats.species_rounds_present} | "
+            f"{combination_name} | {stats.species_rounds_present} | "
             f"{stats.times_extinct} | {stats.total_food} | "
             f"{stats.average_food_per_round:.2f} | "
             f"{stats.total_population_at_start_of_feeding} | "

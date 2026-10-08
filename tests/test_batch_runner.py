@@ -37,6 +37,10 @@ class BatchRunnerTest(unittest.TestCase):
             self.assertIn(f"Game number: {index}", log_text)
             self.assertIn(f"Seed: {index + 9}", log_text)
             self.assertIn("Promo cards: True", log_text)
+            self.assertIn(
+                "Avid Forager cards in Nature deck (including setup food card): 11",
+                log_text,
+            )
             self.assertIn("ROUND 1 - PREPARATION", log_text)
             self.assertIn("ROUND 1 - ADAPTATION", log_text)
             self.assertIn("ROUND 1 - FEEDING", log_text)
@@ -101,6 +105,13 @@ class BatchRunnerTest(unittest.TestCase):
         self.assertTrue(any("Seed: 20" in content for content in contents))
         self.assertTrue(any("Seed: 21" in content for content in contents))
         self.assertTrue(all("Promo cards: True" in content for content in contents))
+        self.assertTrue(
+            all(
+                "Avid Forager cards in Nature deck "
+                "(including setup food card): 11" in content
+                for content in contents
+            )
+        )
 
     def test_cli_run_loop_runs_each_difficulty_with_separate_promo_outputs(self):
         with patch.object(RunExperiments, "run", return_value=0) as run:

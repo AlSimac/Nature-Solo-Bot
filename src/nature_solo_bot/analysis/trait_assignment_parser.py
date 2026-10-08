@@ -148,12 +148,12 @@ class TraitAssignmentParser:
     ) -> dict[tuple[str, ...], TraitCombinationStats]:
         """Aggregate exact trait combinations across all logged species-rounds.
 
-        Each species-round with at least one trait counts once. Repeated copies
-        of a trait are preserved as part of the combination (for example,
-        ``("Fast", "Fast")`` is distinct from ``("Fast",)``). Population loss
-        is the difference between population after adaptation and the surviving
-        population after feeding; an extinct species has zero surviving
-        population.
+        Each species-round counts once, including species with no traits (the
+        empty tuple). Repeated copies of a trait are preserved as part of the
+        combination (for example, ``("Fast", "Fast")`` is distinct from
+        ``("Fast",)``). Population loss is the difference between population
+        after adaptation and the surviving population after feeding; an extinct
+        species has zero surviving population.
         """
         directory = Path(folder)
         if not directory.is_dir():
@@ -380,8 +380,6 @@ class TraitAssignmentParser:
             )
 
             for species_id, (combination, starting_population) in starting_species.items():
-                if not combination:
-                    continue
                 surviving_state = surviving_species.get(species_id)
                 surviving_population = (
                     surviving_state[1] if surviving_state is not None else 0

@@ -10,7 +10,13 @@ from ..game.model.player import Player
 from ..game.model.species import Species, TreeColor
 from ..game.model.state import GameState
 from ..game.model.trait_card import TraitCard
-from ..game.model.trait_cards import OPPORTUNISTIC, SCAVENGING, SOCIAL, TUSKED
+from ..game.model.trait_cards import (
+    AVID_FORAGER,
+    OPPORTUNISTIC,
+    SCAVENGING,
+    SOCIAL,
+    TUSKED,
+)
 from ..game.rules.adaptation import AdaptationRules
 from ..game.rules.feeding import FeedingRules
 
@@ -433,6 +439,16 @@ class GameLogger:
         self.write(
             f"Nature deck: {len(self.state.nature_deck)} cards; "
             f"Nature discard: {len(self.state.nature_discard)} cards"
+        )
+        nature_cards = [*self.state.nature_deck, *self.state.nature_discard]
+        if self.state.food_card is not None:
+            nature_cards.append(self.state.food_card)
+        avid_forager_count = sum(
+            card.trait is AVID_FORAGER for card in nature_cards
+        )
+        self.write(
+            "Avid Forager cards in Nature deck "
+            f"(including setup food card): {avid_forager_count}"
         )
         for player in self.state.players:
             self.player_board(player)
