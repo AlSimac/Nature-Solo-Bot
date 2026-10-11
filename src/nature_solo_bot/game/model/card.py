@@ -2,13 +2,13 @@
 
 from copy import deepcopy
 
+from . import trait
+from .nature_symbols import SYMBOL_BY_TRAIT_AND_FOOD
 from .solo_cards import NATURE_SOLO_CARDS
 from .solo_species import SoloSpecies
-from .nature_symbols import SYMBOL_BY_TRAIT_AND_FOOD
 from .symbol import SymbolName
-from .trait_cards import AVID_FORAGER, NATURE_TRAITS
 from .trait_card import TraitCard
-from . import trait
+from .trait_cards import AVID_FORAGER, NATURE_TRAITS
 
 
 class Card(TraitCard):

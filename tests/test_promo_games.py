@@ -1,9 +1,10 @@
 """Run several full games with the Promo cards and save only their final scores."""
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
+from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER
 
 
@@ -16,6 +17,18 @@ class PromoGamesTest(unittest.TestCase):
             state = engine.setup_game()
             self.assertTrue(
                 any(card.trait is AVID_FORAGER for card in state.nature_deck)
+                or (
+                    state.food_card is not None
+                    and state.food_card.trait is AVID_FORAGER
+                )
+            )
+            self.assertEqual(
+                sum(card.trait is AVID_FORAGER for card in state.nature_deck)
+                + int(
+                    state.food_card is not None
+                    and state.food_card.trait is AVID_FORAGER
+                ),
+                len(Card.NATURE_FOOD_VALUES),
             )
 
             completed_state = engine.run_game()

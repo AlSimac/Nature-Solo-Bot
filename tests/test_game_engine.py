@@ -3,10 +3,18 @@ from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
-from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.state import Difficulty
+from src.nature_solo_bot.game.model.trait_cards import HUNTER
 
 
 class GameEngineTest(unittest.TestCase):
+    @staticmethod
+    def _remove_hunter_trait(species):
+        for card in list(species.trait_cards):
+            if card.trait is HUNTER:
+                species.remove_trait_card(card)
+
     def test_initialize_game(self):
         engine = GameEngine(seed=42)
 
@@ -43,6 +51,18 @@ class GameEngineTest(unittest.TestCase):
 
         self.assertIs(engine.define_winner(), second_player)
 
+    def test_define_winner_treats_score_and_trait_tie_as_draw(self):
+        engine = GameEngine(seed=42)
+        state = engine.setup_game()
+        first_player, second_player = state.players
+        first_player.score = second_player.score = 10
+
+        cards = Card.init_nature_deck()
+        first_player.species[0].add_trait_card(cards[0], max_traits=state.max_traits)
+        second_player.species[0].add_trait_card(cards[1], max_traits=state.max_traits)
+
+        self.assertIsNone(engine.define_winner())
+
     def test_choose_species_to_feed_excludes_fully_fed_species(self):
         engine = GameEngine(seed=42)
         state = engine.setup_game()
@@ -51,13 +71,13 @@ class GameEngineTest(unittest.TestCase):
         player = state.players[0]
         for species in player.species:
             species.plant_food = species.population
-            species.is_hunter = False
+            self._remove_hunter_trait(species)
 
         hungry_forager = player.species[0]
         hungry_forager.plant_food = 0
         hungry_forager.meat_food = 0
         fully_fed_hunter = player.species[1]
-        fully_fed_hunter.is_hunter = True
+        fully_fed_hunter.add_trait_card(HunterCard(), max_traits=state.max_traits)
 
         self.assertEqual(
             engine.choose_species_to_feed(player),
@@ -76,7 +96,7 @@ class GameEngineTest(unittest.TestCase):
             player.hand = [state.nature_deck[0]]
             species = player.species
             for candidate in species:
-                candidate.is_hunter = False
+                self._remove_hunter_trait(candidate)
 
             species[0].size = 5
             species[0].population = 4
@@ -114,8 +134,8 @@ class GameEngineTest(unittest.TestCase):
                 [species[1], species[0], species[2]],
             )
 
-            species[0].is_hunter = True
-            species[1].is_hunter = True
+            species[0].add_trait_card(HunterCard(), max_traits=state.max_traits)
+            species[1].add_trait_card(HunterCard(), max_traits=state.max_traits)
             species[1].plant_food = species[1].population
             self.assertEqual(
                 engine.choose_species_to_feed(player),
@@ -125,7 +145,6 @@ class GameEngineTest(unittest.TestCase):
 
 import unittest
 
-from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.state import GamePhase
 
 
@@ -150,12 +169,12 @@ class GameEnginePreparationTest(unittest.TestCase):
         )
 
     def test_difficulty_controls_round_one_population_and_hand_size(self):
-        engine = GameEngine(seed=42, difficulty=DIFFICULTY_EASIEST)
+        engine = GameEngine(seed=42, difficulty=Difficulty.EASIEST)
         state = engine.setup_game()
 
         engine.run_preparation_phase()
 
-        self.assertIs(state.difficulty, DIFFICULTY_EASIEST)
+        self.assertIs(state.difficulty, Difficulty.EASIEST)
         self.assertEqual(len(state.players[0].hand), 5)
         self.assertEqual(len(state.players[1].hand), 5)
         self.assertEqual(state.players[0].species[1].population, 1)

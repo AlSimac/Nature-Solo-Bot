@@ -7,7 +7,6 @@ from ..game.model.card import Card
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import (
-    DIFFICULTY_MEDIUM,
     Difficulty,
     GamePhase,
     GameState,
@@ -28,7 +27,7 @@ class GameEngine:
     def __init__(
         self,
         seed: int | None = None,
-        difficulty: Difficulty = DIFFICULTY_MEDIUM,
+        difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
     ):
         self.seed = seed
@@ -94,7 +93,8 @@ class GameEngine:
             self.run_scoring_phase()
             state.current_round += 1
 
-        self.define_winner()
+        state.winner = self.define_winner()
+        state.game_over = True
         return state
 
     def run_preparation_phase(self):
@@ -242,15 +242,33 @@ class GameEngine:
         ScoringRules.score_round(self.state, self.rng)
 
     def define_winner(self) -> Player | None:
-        """Determine the winner, using surviving species' trait count as a tiebreaker."""
+        """Determine the winner. Score decides first, then trait count; a remaining tie is a draw."""
         if self.state is None:
             raise RuntimeError("The game has not been initialized.")
 
-        return max(
-            self.state.players,
-            key=lambda player: (
-                player.score,
-                sum(len(species.trait_cards) for species in player.species),
-            ),
-            default=None,
+        if not self.state.players:
+            return None
+
+        highest_score = max(player.score for player in self.state.players)
+        score_leaders = [
+            player for player in self.state.players if player.score == highest_score
+        ]
+
+        if len(score_leaders) == 1:
+            return score_leaders[0]
+
+        highest_trait_count = max(
+            sum(len(species.trait_cards) for species in player.species)
+            for player in score_leaders
         )
+        trait_leaders = [
+            player
+            for player in score_leaders
+            if sum(len(species.trait_cards) for species in player.species)
+            == highest_trait_count
+        ]
+
+        if len(trait_leaders) == 1:
+            return trait_leaders[0]
+
+        return None

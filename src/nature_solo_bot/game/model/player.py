@@ -1,8 +1,8 @@
 """Player model for a Nature-like board game."""
 
-from .solo_species import SoloSpecies
 from .card import Card
 from .hunter_card import HunterCard
+from .solo_species import SoloSpecies
 from .species import Species
 from .trait_card import TraitCard
 

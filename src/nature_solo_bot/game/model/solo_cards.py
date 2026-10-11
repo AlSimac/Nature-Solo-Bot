@@ -1,5 +1,5 @@
-from .symbol import Symbol, SymbolIncrease, SymbolName
 from .solo_species import SoloEffect, SoloSpecies
+from .symbol import Symbol, SymbolIncrease, SymbolName
 
 EVADER = SoloSpecies(
     name="Evader",

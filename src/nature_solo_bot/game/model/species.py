@@ -1,9 +1,9 @@
 from enum import Enum
 
-from .trait_card import TraitCard
 from .solo_species import SoloSpecies
 from .trait import Trait
-from .trait_cards import HUNTER
+from .trait_card import TraitCard
+from .trait_cards import AVID_FORAGER, HUNTER
 
 
 class TreeColor(Enum):
@@ -23,7 +23,6 @@ class Species:
         self.round_created: int = round_created
         self.population: int = 1
         self.size: int = 1
-        self.is_hunter: bool = False
         self.plant_food: int = 0
         self.meat_food: int = 0
         self.tree_color = TreeColor.PINK
@@ -32,11 +31,11 @@ class Species:
 
     @property
     def attack_value(self) -> int:
-        return self.size
+        return self.size + sum(trait.attack_modifier for trait in self.traits)
 
     @property
     def defense_value(self) -> int:
-        return self.size
+        return self.size + sum(trait.defense_modifier for trait in self.traits)
 
     @property
     def forage_value(self) -> int:
@@ -51,24 +50,29 @@ class Species:
         return self.total_food < self.population
 
     @property
+    def is_hunter(self) -> bool:
+        return any(trait.effect_id == HUNTER.effect_id for trait in self.traits)
+
+    @property
     def traits(self) -> list[Trait]:
         """Return the trait definitions carried by this species' cards."""
         return [card.trait for card in self.trait_cards]
 
     def add_trait_card(self, card: TraitCard, *, max_traits: int) -> bool:
-        if len(self.trait_cards) >= max_traits:
-            return False
-
-        self.trait_cards.append(card)
-        self._refresh_hunter_status()
-        return True
+        """Give a trait to a species"""
+        if not (
+            (len(self.trait_cards) >= max_traits)
+            or (card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2)
+        ):
+            self.trait_cards.append(card)
+            return True
+        return False
 
     def remove_trait_card(self, card: TraitCard) -> bool:
         if card not in self.trait_cards:
             return False
 
         self.trait_cards.remove(card)
-        self._refresh_hunter_status()
         return True
 
     def replace_trait_card(
@@ -78,18 +82,22 @@ class Species:
         *,
         max_traits: int,
     ) -> bool:
-        if old_card not in self.trait_cards or len(self.trait_cards) > max_traits:
+        if (
+            old_card not in self.trait_cards
+            or len(self.trait_cards) > max_traits
+            or (
+                new_card.trait.effect_id == AVID_FORAGER.effect_id
+                and self.size > 2
+            )
+        ):
             return False
 
         card_index = self.trait_cards.index(old_card)
         self.trait_cards[card_index] = new_card
-        self._refresh_hunter_status()
         return True
 
-    def _refresh_hunter_status(self) -> None:
-        self.is_hunter = any(
-            card.trait.effect_id == HUNTER.effect_id for card in self.trait_cards
-        )
+    def trait_count(self, trait_id: str):
+        return sum(trait.effect_id == trait_id for trait in self.traits)
 
     def switch_tree_color(self):
         """Switch the tree color of the species."""
