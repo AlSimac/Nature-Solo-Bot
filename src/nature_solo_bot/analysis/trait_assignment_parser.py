@@ -66,6 +66,14 @@ class TraitCombinationStats:
 
         return self.total_lost_population / self.species_rounds_present
 
+    @property
+    def extinction_rate(self) -> float:
+        """Extinction rate of a species carrying this combination per round."""
+        if self.species_rounds_present == 0:
+            return 0.0
+
+        return self.times_extinct / self.species_rounds_present
+
 
 @dataclass(slots=True)
 class SoloSpeciesStats:
@@ -91,6 +99,14 @@ class SoloSpeciesStats:
             return 0.0
 
         return self.total_lost_population / self.species_rounds_present
+
+    @property
+    def extinction_rate(self) -> float:
+        """Extinction rate of a species carrying this combination per round."""
+        if self.species_rounds_present == 0:
+            return 0.0
+
+        return self.times_extinct / self.species_rounds_present
 
 
 class TraitAssignmentParser:
