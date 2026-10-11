@@ -5,21 +5,16 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-_ASSIGNMENT_PATTERN = re.compile(
-    r"^\s*(?P<player>[^:]+): .* -> S\d+ trait '(?P<trait>[^']+)'$"
-)
+_ASSIGNMENT_PATTERN = re.compile(r"^\s*(?P<player>[^:]+): .* -> S\d+ trait '(?P<trait>[^']+)'$")
 _ROUND_PATTERN = re.compile(r"^ROUND (?P<round>\d+) - (?P<phase>[A-Z]+)$")
 _SPECIES_BOARD_PATTERN = re.compile(
-    r"^\s+(?P<species>S\d+) .+ population=(?P<population>\d+), "
-    r"traits=\[(?P<traits>[^]]*)\]"
+    r"^\s+(?P<species>S\d+) .+ population=(?P<population>\d+), " r"traits=\[(?P<traits>[^]]*)\]"
 )
 _SOLO_SPECIES_BOARD_PATTERN = re.compile(
     r"^\s+(?P<species>S\d+) (?P<solo_species>.+?) \(tree=.* "
     r"population=(?P<population>\d+), traits=\["
 )
-_FOOD_EATEN_PATTERN = re.compile(
-    r"^\s+(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat) food\b"
-)
+_FOOD_EATEN_PATTERN = re.compile(r"^\s+(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat) food\b")
 
 
 @dataclass(slots=True)
@@ -63,6 +58,14 @@ class TraitCombinationStats:
             return 0.0
         return self.total_food / self.species_rounds_present
 
+    @property
+    def average_lost_population(self) -> float:
+        """Average lost population by a species carrying this combination per round."""
+        if self.species_rounds_present == 0:
+            return 0.0
+
+        return self.total_lost_population / self.species_rounds_present
+
 
 @dataclass(slots=True)
 class SoloSpeciesStats:
@@ -80,6 +83,14 @@ class SoloSpeciesStats:
         if self.species_rounds_present == 0:
             return 0.0
         return self.total_food / self.species_rounds_present
+
+    @property
+    def average_lost_population(self) -> float:
+        """Average lost population by a species carrying this combination per round."""
+        if self.species_rounds_present == 0:
+            return 0.0
+
+        return self.total_lost_population / self.species_rounds_present
 
 
 class TraitAssignmentParser:
@@ -100,9 +111,7 @@ class TraitAssignmentParser:
         if not log_paths:
             raise ValueError(f"No game log files found under: {directory}")
 
-        totals: defaultdict[str, TraitAssignmentCounts] = defaultdict(
-            TraitAssignmentCounts
-        )
+        totals: defaultdict[str, TraitAssignmentCounts] = defaultdict(TraitAssignmentCounts)
         for log_path in log_paths:
             self._parse_log(log_path, totals)
 
@@ -135,10 +144,7 @@ class TraitAssignmentParser:
             round_numbers.update(self._parse_food_log(log_path, totals))
 
         return {
-            trait: {
-                round_number: rounds[round_number]
-                for round_number in sorted(round_numbers)
-            }
+            trait: {round_number: rounds[round_number] for round_number in sorted(round_numbers)}
             for trait, rounds in sorted(totals.items())
         }
 
@@ -203,8 +209,7 @@ class TraitAssignmentParser:
         for line_number, player, trait in assignment_lines:
             if player not in players:
                 raise ValueError(
-                    f"Unknown assigning player {player!r} on "
-                    f"{log_path}:{line_number}"
+                    f"Unknown assigning player {player!r} on " f"{log_path}:{line_number}"
                 )
             if winner == "None":
                 totals[trait].tied += 1
@@ -263,9 +268,7 @@ class TraitAssignmentParser:
             traits_by_species = TraitAssignmentParser._read_adaptation_traits(
                 round_sections["ADAPTATION"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(
-                round_sections["FEEDING"]
-            )
+            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
             for species_id, trait_names in traits_by_species.items():
                 for trait in trait_names:
                     stats = totals[trait][round_number]
@@ -359,8 +362,7 @@ class TraitAssignmentParser:
                 )
             if "Species at the end of adaptation:" not in round_sections["ADAPTATION"]:
                 raise ValueError(
-                    f"Missing post-adaptation species board in {log_path}, "
-                    f"round {round_number}"
+                    f"Missing post-adaptation species board in {log_path}, " f"round {round_number}"
                 )
             if not any(
                 line.startswith("Watering hole after feeding:")
@@ -375,15 +377,11 @@ class TraitAssignmentParser:
             surviving_species = TraitAssignmentParser._read_species_states(
                 round_sections["FEEDING"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(
-                round_sections["FEEDING"]
-            )
+            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
 
             for species_id, (combination, starting_population) in starting_species.items():
                 surviving_state = surviving_species.get(species_id)
-                surviving_population = (
-                    surviving_state[1] if surviving_state is not None else 0
-                )
+                surviving_population = surviving_state[1] if surviving_state is not None else 0
                 stats = totals[combination]
                 stats.species_rounds_present += 1
                 stats.total_food += food_by_species[species_id]
@@ -426,8 +424,7 @@ class TraitAssignmentParser:
                 )
             if "Species at the end of adaptation:" not in round_sections["ADAPTATION"]:
                 raise ValueError(
-                    f"Missing post-adaptation species board in {log_path}, "
-                    f"round {round_number}"
+                    f"Missing post-adaptation species board in {log_path}, " f"round {round_number}"
                 )
             if not any(
                 line.startswith("Watering hole after feeding:")
@@ -443,9 +440,7 @@ class TraitAssignmentParser:
             surviving_species = TraitAssignmentParser._read_solo_species_states(
                 round_sections["FEEDING"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(
-                round_sections["FEEDING"]
-            )
+            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
 
             for species_id, (solo_species, starting_population) in starting_species.items():
                 surviving_state = surviving_species.get(species_id)

@@ -61,10 +61,12 @@ def _write_combination_csv(
             "trait_combination",
             "species_rounds_present",
             "times_extinct",
+            "extinction_rate",
             "total_food",
             "average_food_per_species_round",
             "total_population_at_start_of_feeding",
             "total_lost_population",
+            "average_lost_population",
         )
     )
     for combination, stats in counts.items():
@@ -78,6 +80,7 @@ def _write_combination_csv(
                 f"{stats.average_food_per_round:.2f}",
                 stats.total_population_at_start_of_feeding,
                 stats.total_lost_population,
+                f"{stats.average_lost_population:.2f}",
             )
         )
 
@@ -95,6 +98,7 @@ def _write_solo_species_csv(
             "average_food_per_species_round",
             "total_population_at_start_of_feeding",
             "total_lost_population",
+            "average_lost_population",
         )
     )
     for solo_species, stats in counts.items():
@@ -107,6 +111,7 @@ def _write_solo_species_csv(
                 f"{stats.average_food_per_round:.2f}",
                 stats.total_population_at_start_of_feeding,
                 stats.total_lost_population,
+                f"{stats.average_lost_population:.2f}",
             )
         )
 
@@ -114,10 +119,7 @@ def _write_solo_species_csv(
 def _print_assignment_counts(counts: dict[str, TraitAssignmentCounts]) -> None:
     print("Trait | Winner assignments | Loser assignments | Tied-game assignments")
     for trait, trait_counts in counts.items():
-        print(
-            f"{trait} | {trait_counts.winner} | {trait_counts.loser} | "
-            f"{trait_counts.tied}"
-        )
+        print(f"{trait} | {trait_counts.winner} | {trait_counts.loser} | " f"{trait_counts.tied}")
 
 
 def _print_food_counts(
@@ -146,7 +148,8 @@ def _print_combination_counts(
             f"{stats.times_extinct} | {stats.total_food} | "
             f"{stats.average_food_per_round:.2f} | "
             f"{stats.total_population_at_start_of_feeding} | "
-            f"{stats.total_lost_population}"
+            f"{stats.total_lost_population} | "
+            f"{stats.average_lost_population:.2f}"
         )
 
 
@@ -161,7 +164,8 @@ def _print_solo_species_counts(counts: dict[str, SoloSpeciesStats]) -> None:
             f"{stats.times_extinct} | {stats.total_food} | "
             f"{stats.average_food_per_round:.2f} | "
             f"{stats.total_population_at_start_of_feeding} | "
-            f"{stats.total_lost_population}"
+            f"{stats.total_lost_population} | "
+            f"{stats.average_lost_population:.2f}"
         )
 
 

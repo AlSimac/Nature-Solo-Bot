@@ -166,9 +166,7 @@ class TraitAssignmentParserTest(unittest.TestCase):
             log_path = Path(temporary_directory) / "gamelog_2_test.log"
             log_path.write_text("\n".join(log_lines), encoding="utf-8")
 
-            stats = TraitAssignmentParser().parse_trait_combinations(
-                temporary_directory
-            )
+            stats = TraitAssignmentParser().parse_trait_combinations(temporary_directory)
 
         duplicate_combo = ("Fast", "Social", "Social")
         self.assertEqual(stats[duplicate_combo].species_rounds_present, 2)
