@@ -4,7 +4,7 @@ from unittest.mock import patch
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
-from src.nature_solo_bot.game.model.state import DIFFICULTY_EASIEST
+from src.nature_solo_bot.game.model.state import Difficulty
 from src.nature_solo_bot.game.model.trait_cards import HUNTER
 
 
@@ -169,12 +169,12 @@ class GameEnginePreparationTest(unittest.TestCase):
         )
 
     def test_difficulty_controls_round_one_population_and_hand_size(self):
-        engine = GameEngine(seed=42, difficulty=DIFFICULTY_EASIEST)
+        engine = GameEngine(seed=42, difficulty=Difficulty.EASIEST)
         state = engine.setup_game()
 
         engine.run_preparation_phase()
 
-        self.assertIs(state.difficulty, DIFFICULTY_EASIEST)
+        self.assertIs(state.difficulty, Difficulty.EASIEST)
         self.assertEqual(len(state.players[0].hand), 5)
         self.assertEqual(len(state.players[1].hand), 5)
         self.assertEqual(state.players[0].species[1].population, 1)

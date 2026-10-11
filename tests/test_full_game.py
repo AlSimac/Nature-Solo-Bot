@@ -8,7 +8,7 @@ from src.nature_solo_bot.engine.action_applier import ActionApplier
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.species import Species
-from src.nature_solo_bot.game.model.state import DIFFICULTY_MEDIUM, GameState
+from src.nature_solo_bot.game.model.state import Difficulty, GameState
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.model.trait_cards import (
     OPPORTUNISTIC,
@@ -102,7 +102,7 @@ class FullGameLog:
 class FullGameTest(unittest.TestCase):
     def test_complete_game_writes_detailed_log(self):
         seed = 0
-        engine = GameEngine(seed=seed, difficulty=DIFFICULTY_MEDIUM)
+        engine = GameEngine(seed=seed, difficulty=Difficulty.MEDIUM)
         state = engine.setup_game()
         trace = FullGameLog()
         for player in state.players:

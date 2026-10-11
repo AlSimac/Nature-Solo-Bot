@@ -1,3 +1,5 @@
-"""Experiment package stub."""
+"""Run and analyze simulation experiments."""
 
-__all__ = []
+from .batch_runner import BatchRunner
+
+__all__ = ["BatchRunner"]
