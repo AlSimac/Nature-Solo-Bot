@@ -2,6 +2,8 @@ from collections.abc import Iterable
 from copy import copy
 from random import Random
 
+from nature_solo_bot.game.model.minimodules import Minimodules
+
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
@@ -31,33 +33,35 @@ class FeedingRules:
     ) -> None:
         """Feed or starve one species according to the solo feeding priority."""
         ordered_species = FeedingRules.choose_species_to_feed(state, active_player)
+
+        # skip the player if it passed already
         if not ordered_species:
             active_player.passing = True
             return
 
         successful_feeding = False
 
+        # main loop over the species that can feed
         for species in ordered_species:
+            # foragers feed first
             if not species.is_hunter:
                 available_food = FeedingRules.get_available_food(state, active_player)
 
                 if available_food <= 0:
                     continue
 
-                if not FeedingRules._forage_with_refill(
-                    state, active_player, species, rng
-                ):
+                if not FeedingRules._forage_with_refill(state, active_player, species, rng):
                     continue
 
+                # Avid Forager bonus foraging
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
-                    if not FeedingRules._forage_with_refill(
-                        state, active_player, species, rng
-                    ):
+                    if not FeedingRules._forage_with_refill(state, active_player, species, rng):
                         break
 
                 successful_feeding = True
                 break
 
+            # hunters are next
             if FeedingRules.hunt(state, active_player, species):
                 successful_feeding = True
 
@@ -65,13 +69,14 @@ class FeedingRules:
                 FeedingRules._trigger_trait_feeding(
                     (species for player in state.players for species in player.species),
                     SCAVENGING.effect_id,
-                    2,
+                    2 if not Minimodules.ELEPHANT_GRAVEYARD in state.minimodules else 1,
                     MEAT,
                 )
-
                 break
 
+        # if the player managed to feed a species this round
         if successful_feeding:
+            # Triggering Opportunistic
             if state.watering_hole_plant > 0:
                 FeedingRules._trigger_trait_feeding(
                     active_player.species,
@@ -80,7 +85,25 @@ class FeedingRules:
                     MEAT,
                 )
 
-        else:
+        # if playing with ELEPHANT GRAVEYARD, feed the remaining hungry Scavenging species
+        if (
+            Minimodules.ELEPHANT_GRAVEYARD in state.minimodules
+            and state.elephant_graveyard_meat > 0
+        ):
+            hungry_scavenging_species = [
+                species
+                for species in active_player.species
+                if species.is_hungry and SCAVENGING in species.traits
+            ]
+            # Eating from the EG is not a foraging or hunting, it's a separate feeding action
+            meat_eaten_from_graveyard = FeedingRules.eat(
+                hungry_scavenging_species[0], MEAT, 1, state.elephant_graveyard_meat
+            )
+            state.elephant_graveyard_meat -= meat_eaten_from_graveyard
+            successful_feeding
+
+        # if not, starves one species
+        if not successful_feeding:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
 
@@ -131,7 +154,8 @@ class FeedingRules:
         ]
         foragers.sort(key=lambda candidate: (-candidate[2], candidate[0]))
         hunters = [species for species in hungry_species if species.is_hunter]
-        return [species for _, species, _ in foragers] + hunters
+        ordered_species = [species for _, species, _ in foragers] + hunters
+        return ordered_species
 
     @staticmethod
     def _projected_food_gain_from_forage(

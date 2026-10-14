@@ -29,16 +29,18 @@ class GameEngine:
         seed: int | None = None,
         difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
+        minimodules: list[str] | None = None,
     ):
         self.seed = seed
         self.difficulty = difficulty
         self.promo = promo
         self.rng = random.Random(seed)
         self.state: GameState | None = None
+        self.minimodules: list[str] | None = minimodules
 
     def setup_game(self) -> GameState:
         """Set up the initial game state."""
-        state = GameState(difficulty=self.difficulty)
+        state = GameState(difficulty=self.difficulty, minimodules=self.minimodules)
         state.seed = self.seed
         # Instantiate two players for the game
         state.players = Player.init_two_players()
@@ -131,9 +133,7 @@ class GameEngine:
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(
-                solo_card=solo_card, round_created=self.state.current_round
-            )
+            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
 
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
@@ -165,15 +165,11 @@ class GameEngine:
         self.state.current_phase = GamePhase.ADAPTATION
 
         for offset in range(self.state.number_players):
-            player_index = (
-                self.state.first_player_index + offset
-            ) % self.state.number_players
+            player_index = (self.state.first_player_index + offset) % self.state.number_players
             player: Player = self.state.players[player_index]
             AdaptationRules.adapt_player(self.state, player, self.rng)
 
-    def assign_card_to_correct_candidate(
-        self, player: Player, temporary_hand: list[TraitCard]
-    ):
+    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
         """Compatibility entry point for assigning one adaptation card."""
         if self.state is None:
             raise RuntimeError("The game has not been initialized.")
@@ -202,14 +198,10 @@ class GameEngine:
         # Starting with first player, players will alternate feeding turns.
         # The feeding phase continues until no species is hungry.
         hungry_populations_left = any(
-            species.is_hungry
-            for player in self.state.players
-            for species in player.species
+            species.is_hungry for player in self.state.players for species in player.species
         )
 
-        while hungry_populations_left and any(
-            not player.passing for player in self.state.players
-        ):
+        while hungry_populations_left and any(not player.passing for player in self.state.players):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -250,22 +242,18 @@ class GameEngine:
             return None
 
         highest_score = max(player.score for player in self.state.players)
-        score_leaders = [
-            player for player in self.state.players if player.score == highest_score
-        ]
+        score_leaders = [player for player in self.state.players if player.score == highest_score]
 
         if len(score_leaders) == 1:
             return score_leaders[0]
 
         highest_trait_count = max(
-            sum(len(species.trait_cards) for species in player.species)
-            for player in score_leaders
+            sum(len(species.trait_cards) for species in player.species) for player in score_leaders
         )
         trait_leaders = [
             player
             for player in score_leaders
-            if sum(len(species.trait_cards) for species in player.species)
-            == highest_trait_count
+            if sum(len(species.trait_cards) for species in player.species) == highest_trait_count
         ]
 
         if len(trait_leaders) == 1:

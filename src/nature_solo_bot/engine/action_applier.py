@@ -5,6 +5,7 @@ from random import Random
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import GameState
+from ..game.model.minimodules import Minimodules
 
 
 class ActionApplier:
@@ -39,6 +40,9 @@ class ActionApplier:
         species.population -= 1
         species.lost_population += 1
         player.lost_population += 1
+
+        if Minimodules.ELEPHANT_GRAVEYARD in state.minimodules:
+            state.elephant_graveyard_meat += 1
 
         # Killing the last species triggers extinction
         if species.population == 0:
