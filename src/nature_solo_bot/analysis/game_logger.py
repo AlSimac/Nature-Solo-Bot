@@ -315,8 +315,10 @@ class GameLogger:
         assert self._original_feeding is not None
         self.write(f"\nROUND {self.state.current_round} - FEEDING")
         self.write(f"Watering hole before feeding: {self.state.watering_hole_plant}")
+        self.write(f"Elephant graveyard before feeding: {self.state.elephant_graveyard_meat}")
         self._original_feeding()
         self.write(f"Watering hole after feeding: {self.state.watering_hole_plant}")
+        self.write(f"Elephant graveyard after feeding: {self.state.elephant_graveyard_meat}")
         for player in self.state.players:
             self.write(f"  {player.name} species after feeding:")
             for species in player.species:
@@ -443,9 +445,7 @@ class GameLogger:
         nature_cards = [*self.state.nature_deck, *self.state.nature_discard]
         if self.state.food_card is not None:
             nature_cards.append(self.state.food_card)
-        avid_forager_count = sum(
-            card.trait is AVID_FORAGER for card in nature_cards
-        )
+        avid_forager_count = sum(card.trait is AVID_FORAGER for card in nature_cards)
         self.write(
             "Avid Forager cards in Nature deck "
             f"(including setup food card): {avid_forager_count}"

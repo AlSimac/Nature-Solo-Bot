@@ -87,25 +87,41 @@ class FeedingRules:
 
         # if playing with ELEPHANT GRAVEYARD, feed the remaining hungry Scavenging species
         if (
-            Minimodules.ELEPHANT_GRAVEYARD in state.minimodules
+            not successful_feeding
+            and Minimodules.ELEPHANT_GRAVEYARD in state.minimodules
             and state.elephant_graveyard_meat > 0
         ):
-            hungry_scavenging_species = [
-                species
-                for species in active_player.species
-                if species.is_hungry and SCAVENGING in species.traits
-            ]
-            # Eating from the EG is not a foraging or hunting, it's a separate feeding action
-            meat_eaten_from_graveyard = FeedingRules.eat(
-                hungry_scavenging_species[0], MEAT, 1, state.elephant_graveyard_meat
-            )
-            state.elephant_graveyard_meat -= meat_eaten_from_graveyard
-            successful_feeding
+            successful_feeding = FeedingRules.eat_from_elephant_graveyard(state, active_player)
 
         # if not, starves one species
         if not successful_feeding:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
+
+    @staticmethod
+    def eat_from_elephant_graveyard(state: GameState, active_player: Player) -> bool:
+        """
+        ELEPHANT GRAVEYARD
+        Eating from the elephant graveyard for Scanveging species
+        """
+        hungry_scavenging_species = [
+            species
+            for species in active_player.species
+            if species.is_hungry and SCAVENGING in species.traits
+        ]
+
+        if not hungry_scavenging_species:
+            successful_feeding = False
+
+        else:
+            # Eating from the EG is not a foraging or hunting, it's a separate feeding action
+            meat_eaten_from_graveyard = FeedingRules.eat(
+                hungry_scavenging_species[0], MEAT, 1, state.elephant_graveyard_meat
+            )
+            state.elephant_graveyard_meat -= meat_eaten_from_graveyard
+            successful_feeding = True
+
+        return successful_feeding
 
     @staticmethod
     def _forage_with_refill(

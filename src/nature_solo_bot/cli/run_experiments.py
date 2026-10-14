@@ -40,6 +40,10 @@ class RunExperiments:
             help="include Promo cards",
         )
         parser.add_argument(
+            "--minimodules",
+            help="list of minimodules",
+        )
+        parser.add_argument(
             "--output-dir",
             help="directory for game logs (defaults to output/Nature/<difficulty>/<core-or-promo>)",
         )
@@ -55,16 +59,14 @@ class RunExperiments:
             "hardest": Difficulty.HARDEST,
         }
         output_directory = options.output_dir or str(
-            Path("output")
-            / "Nature"
-            / options.difficulty
-            / ("promo" if options.promo else "core")
+            Path("output") / "Nature" / options.difficulty / ("promo" if options.promo else "core")
         )
         log_paths = BatchRunner(
             game_count=options.games,
             start_seed=options.start_seed,
             difficulty=difficulties[options.difficulty],
             promo=options.promo,
+            minimodules=options.minimodules,
         ).run(output_directory)
         print(f"Saved {len(log_paths)} game logs to {output_directory}")
         return 0
@@ -72,29 +74,23 @@ class RunExperiments:
     @staticmethod
     def run_loop() -> int:
         """Run batches for every difficulty, both with and without promo cards."""
-        for difficulty in Difficulty:
-            difficulty_name = difficulty.name.lower()
+        difficulty_name = "medium"
 
-            for promo in (False, True):
-                arguments = [
-                    "--difficulty",
-                    difficulty_name,
-                    "--output-dir",
-                    str(
-                        Path("output")
-                        / "Nature"
-                        / difficulty_name
-                        / ("promo" if promo else "core")
-                    ),
-                ]
+        for promo in (False, True):
+            arguments = [
+                "--difficulty",
+                difficulty_name,
+                "--output-dir",
+                str(Path("output") / "Nature" / difficulty_name / ("promo" if promo else "core")),
+            ]
 
-                if promo:
-                    arguments.append("--promo")
+            if promo:
+                arguments.append("--promo")
 
-                exit_code = RunExperiments.run(arguments)
+            exit_code = RunExperiments.run(arguments)
 
-                if exit_code != 0:
-                    return exit_code
+            if exit_code != 0:
+                return exit_code
 
         return 0
 

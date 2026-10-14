@@ -58,6 +58,4 @@ class GameState:
         self.max_traits = 3
         self.max_size = 4
         self.difficulty = difficulty
-
-        if Minimodules.ELEPHANT_GRAVEYARD in self.minimodules:
-            self.elephant_graveyard_meat = 0
+        self.elephant_graveyard_meat = 0
