@@ -1,6 +1,18 @@
 # Nature-Solo-Bot
 Nature board game Solo mode automa
 
+## Disclaimer
+
+This is an unofficial, fan-created software project that simulates the solo variant of Nature through bot-vs-bot gameplay for automated simulations and experimentation.
+
+This project is not affiliated with, endorsed by, or sponsored by NorthStar Game Studio.
+
+All trademarks and other intellectual property belonging to their respective owners remain their property. The game's original design and any third-party materials included in this repository are not claimed as my own.
+
+The software is intended for research, experimentation, and automated simulation. It does not provide a human-playable version of the game.
+
+For questions concerning the original game, please consult its official publisher.
+
 ## Running game experiments
 
 Run this command from the repository root to simulate 1,000 games with the
