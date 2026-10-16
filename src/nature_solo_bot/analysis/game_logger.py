@@ -39,6 +39,7 @@ class GameLogger:
         self._original_forage: Callable[..., None] | None = None
         self._original_hunt: Callable[..., bool] | None = None
         self._original_starve: Callable[..., None] | None = None
+        self._original_eat_from_eg: Callable[..., None] | None = None
         self._original_trigger_trait_feeding: Callable[..., None] | None = None
         self._original_discard: Callable[..., None] | None = None
 
@@ -214,12 +215,22 @@ class GameLogger:
                 for candidate, before_population in before_populations.items()
                 if candidate.population < before_population
             ]
-            details = ", ".join(prey_losses) or "prey population unchanged"
+            details = (
+                f", {prey_losses}. EG meat: {state.elephant_graveyard_meat}"
+                or "prey population unchanged"
+            )
             self._record_feeding_action(
                 f"{self.species_id(species)} ate "
                 f"{species.meat_food - before_meat} meat food by hunting; {details}"
             )
         return hunted
+
+    def _trace_eat_from_eg(self, state: GameState, player: Player) -> None:
+        assert self._original_eat_from_eg is not None
+        self._original_eat_from_eg(state, player)
+        self._record_feeding_action(
+            f"species from {player.name} ate from the Elephant Graveyard ({state.elephant_graveyard_meat})."
+        )
 
     def _trace_trait_trigger(
         self,
@@ -297,7 +308,8 @@ class GameLogger:
         self._original_starve(state, species, player)
         status = "extinct" if species not in player.species else f"population {species.population}"
         self._record_feeding_action(
-            f"{self.species_id(species)} starved " f"(population {before_population} to {status})"
+            f"{self.species_id(species)} starved "
+            f"(population {before_population} to {status}). EG meat: {state.elephant_graveyard_meat}"
         )
 
     def _trace_discard(self, state: GameState, player: Player, rng) -> None:
@@ -379,6 +391,7 @@ class GameLogger:
         self._original_forage = FeedingRules.forage
         self._original_hunt = FeedingRules.hunt
         self._original_starve = FeedingRules.starve
+        self._original_eat_from_eg = FeedingRules.eat_from_elephant_graveyard
         self._original_trigger_trait_feeding = FeedingRules._trigger_trait_feeding
         self._original_discard = ActionApplier.discard_card_for_watering_hole
 
@@ -407,6 +420,9 @@ class GameLogger:
             patch.object(FeedingRules, "hunt", side_effect=self._trace_hunt),
             patch.object(FeedingRules, "starve", side_effect=self._trace_starve),
             patch.object(
+                FeedingRules, "eat_from_elephant_graveyard", side_effect=self._trace_eat_from_eg
+            ),
+            patch.object(
                 FeedingRules,
                 "_trigger_trait_feeding",
                 side_effect=self._trace_trait_trigger,
@@ -428,6 +444,7 @@ class GameLogger:
             f"round_one_population={self.state.difficulty.round_one_population}, "
             f"cards_to_draw={self.state.difficulty.cards_to_draw}"
         )
+        self.write(f"Minimodules: {engine.minimodules}")
         self.write(f"Promo cards: {engine.promo}")
         self.write(f"Players: {', '.join(player.name for player in self.state.players)}")
         self.write(f"Rounds: {self.state.total_rounds}")

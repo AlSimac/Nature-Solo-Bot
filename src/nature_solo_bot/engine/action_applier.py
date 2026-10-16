@@ -41,7 +41,7 @@ class ActionApplier:
         species.lost_population += 1
         player.lost_population += 1
 
-        if Minimodules.ELEPHANT_GRAVEYARD in state.minimodules:
+        if "elephant_graveyard" == state.minimodules:
             state.elephant_graveyard_meat += 1
 
         # Killing the last species triggers extinction

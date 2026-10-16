@@ -29,14 +29,14 @@ class GameEngine:
         seed: int | None = None,
         difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
-        minimodules: list[str] | None = None,
+        minimodules: str | None = None,
     ):
         self.seed = seed
         self.difficulty = difficulty
         self.promo = promo
         self.rng = random.Random(seed)
         self.state: GameState | None = None
-        self.minimodules: list[str] | None = minimodules
+        self.minimodules: str | None = minimodules
 
     def setup_game(self) -> GameState:
         """Set up the initial game state."""

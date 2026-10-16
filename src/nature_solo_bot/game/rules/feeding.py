@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from copy import copy
 from random import Random
 
-from nature_solo_bot.game.model.minimodules import Minimodules
+from ..model.minimodules import Minimodules
 
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
@@ -69,7 +69,7 @@ class FeedingRules:
                 FeedingRules._trigger_trait_feeding(
                     (species for player in state.players for species in player.species),
                     SCAVENGING.effect_id,
-                    2 if not Minimodules.ELEPHANT_GRAVEYARD in state.minimodules else 1,
+                    2 if not "elephant_graveyard" == state.minimodules else 1,
                     MEAT,
                 )
                 break
@@ -85,43 +85,18 @@ class FeedingRules:
                     MEAT,
                 )
 
-        # if playing with ELEPHANT GRAVEYARD, feed the remaining hungry Scavenging species
+        # if playing with ELEPHANT_GRAVEYARD, feed the remaining hungry Scavenging species
         if (
             not successful_feeding
-            and Minimodules.ELEPHANT_GRAVEYARD in state.minimodules
+            and "elephant_graveyard" == state.minimodules
             and state.elephant_graveyard_meat > 0
         ):
             successful_feeding = FeedingRules.eat_from_elephant_graveyard(state, active_player)
 
         # if not, starves one species
-        if not successful_feeding:
+        if not successful_feeding and FeedingRules.choose_species_to_starve(active_player):
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
-
-    @staticmethod
-    def eat_from_elephant_graveyard(state: GameState, active_player: Player) -> bool:
-        """
-        ELEPHANT GRAVEYARD
-        Eating from the elephant graveyard for Scanveging species
-        """
-        hungry_scavenging_species = [
-            species
-            for species in active_player.species
-            if species.is_hungry and SCAVENGING in species.traits
-        ]
-
-        if not hungry_scavenging_species:
-            successful_feeding = False
-
-        else:
-            # Eating from the EG is not a foraging or hunting, it's a separate feeding action
-            meat_eaten_from_graveyard = FeedingRules.eat(
-                hungry_scavenging_species[0], MEAT, 1, state.elephant_graveyard_meat
-            )
-            state.elephant_graveyard_meat -= meat_eaten_from_graveyard
-            successful_feeding = True
-
-        return successful_feeding
 
     @staticmethod
     def _forage_with_refill(
@@ -476,3 +451,27 @@ class FeedingRules:
                 prey_and_loss[0].round_created,
             ),
         )
+
+    ##### ELEPHANT_GRAVEYARD ####
+    @staticmethod
+    def eat_from_elephant_graveyard(state: GameState, active_player: Player) -> bool:
+        """
+        ELEPHANT_GRAVEYARD
+        Eating from the elephant graveyard for Scanveging species
+        """
+        successful_feeding = False
+        hungry_scavenging_species = [
+            species
+            for species in active_player.species
+            if species.is_hungry and SCAVENGING in species.traits
+        ]
+
+        if hungry_scavenging_species and state.elephant_graveyard_meat > 0:
+            # Eating from the EG is not a foraging or hunting, it's a separate feeding action
+            meat_eaten_from_graveyard = FeedingRules.eat(
+                hungry_scavenging_species[0], MEAT, 1, state.elephant_graveyard_meat
+            )
+            state.elephant_graveyard_meat -= meat_eaten_from_graveyard
+            successful_feeding = True
+
+        return successful_feeding

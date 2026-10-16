@@ -78,10 +78,17 @@ class RunExperiments:
 
         for promo in (False, True):
             arguments = [
+                "--minimodules",
+                "elephant_graveyard",
                 "--difficulty",
                 difficulty_name,
                 "--output-dir",
-                str(Path("output") / "Nature" / difficulty_name / ("promo" if promo else "core")),
+                str(
+                    Path("output")
+                    / "Elephant_Graveyard"
+                    / difficulty_name
+                    / ("promo" if promo else "core")
+                ),
             ]
 
             if promo:

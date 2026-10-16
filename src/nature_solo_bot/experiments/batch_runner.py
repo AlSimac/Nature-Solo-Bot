@@ -26,7 +26,7 @@ class BatchRunner:
         start_seed: int = 1,
         difficulty: Difficulty = Difficulty.MEDIUM,
         promo: bool = False,
-        minimodules: list[str],
+        minimodules: str,
     ) -> None:
         if game_count <= 0:
             raise ValueError("game_count must be greater than zero.")
@@ -35,6 +35,7 @@ class BatchRunner:
         self.start_seed = start_seed
         self.difficulty = difficulty
         self.promo = promo
+        self.minimodules = minimodules
 
     def run(
         self,
@@ -46,12 +47,14 @@ class BatchRunner:
         difficulty_id = _DIFFICULTY_IDS.get(self.difficulty)
         difficulty_label = str(difficulty_id) if difficulty_id is not None else "custom"
         log_paths: list[Path] = []
+        
         for game_number in range(1, self.game_count + 1):
             seed = self.start_seed + game_number - 1
             engine = GameEngine(
                 seed=seed,
                 difficulty=self.difficulty,
                 promo=self.promo,
+                minimodules=self.minimodules
             )
             log_path = directory / (f"gamelog_{difficulty_label}_{seed}.log")
             GameLogger().run_game(

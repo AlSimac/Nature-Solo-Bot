@@ -2,9 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-
-from nature_solo_bot.game.model.minimodules import Minimodules
-
 from .card import Card
 from .player import Player
 
@@ -33,11 +30,9 @@ class Difficulty(Enum):
 class GameState:
     """Stores a complete snapshot of a game at any moment in time."""
 
-    def __init__(
-        self, minimodules: list[str] | None = None, difficulty: Difficulty = Difficulty.MEDIUM
-    ):
+    def __init__(self, minimodules: str | None = None, difficulty: Difficulty = Difficulty.MEDIUM):
         """Initialize a fresh game state."""
-        self.minimodules: list[str] = minimodules
+        self.minimodules: str = minimodules
         self.current_round: int = 0
         self.total_rounds: int = 4
         self.current_phase: GamePhase = GamePhase.PREPARATION
