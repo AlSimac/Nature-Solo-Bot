@@ -3,6 +3,8 @@
 import random
 from typing import TypeVar
 
+from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+
 from ..game.model.card import Card
 from ..game.model.player import Player
 from ..game.model.species import Species
@@ -28,17 +30,19 @@ class GameEngine:
         self,
         seed: int | None = None,
         difficulty: Difficulty = Difficulty.MEDIUM,
+        modules: list[str] | None = None,
         promo: bool = False,
     ):
         self.seed = seed
         self.difficulty = difficulty
+        self.modules = list(modules or [])
         self.promo = promo
         self.rng = random.Random(seed)
         self.state: GameState | None = None
 
     def setup_game(self) -> GameState:
         """Set up the initial game state."""
-        state = GameState(difficulty=self.difficulty)
+        state = GameState(difficulty=self.difficulty, modules=self.modules)
         state.seed = self.seed
         # Instantiate two players for the game
         state.players = Player.init_two_players()
@@ -61,13 +65,15 @@ class GameEngine:
     def shuffle_all_decks(self, state):
         """Shuffle all decks for the game."""
         # Shuffle both players' solo decks
-        state.players[0].solo_deck = Card.init_solo_deck()
-        self.rng.shuffle(state.players[0].solo_deck)
-        state.players[1].solo_deck = Card.init_solo_deck()
-        self.rng.shuffle(state.players[1].solo_deck)
-        # Shuffle the Nature trait decks
-        state.nature_deck = Card.init_nature_deck(promo=self.promo)
-        self.rng.shuffle(state.nature_deck)
+        for player in state.players:
+            player.solo_deck = Card.init_solo_deck()
+            self.rng.shuffle(player.solo_deck)
+
+        # Prepare and shuffle the trait decks
+        state.nature_deck[:] = Card.init_nature_deck(promo=self.promo)
+
+        for deck in state.all_decks:
+            self.rng.shuffle(deck)
 
     def draw_card(self, deck: list[T], discard: list[T] | None = None) -> T:
         """Remove and return the top card from the deck."""
@@ -79,6 +85,9 @@ class GameEngine:
             deck.extend(discard)
             discard.clear()
             self.rng.shuffle(deck)
+
+        if not deck:
+            raise RuntimeError("Cannot draw a card: the deck and discard pile are empty.")
 
         return deck.pop()
 
@@ -110,8 +119,13 @@ class GameEngine:
                 self.state.first_player_index + 1
             ) % self.state.number_players
 
-        # Add plant food equal tothe food value of the drawn card to the watering hole
-        self.state.watering_hole_plant += self.state.plant_per_round
+        # Add plant food equal to the food value of the drawn card to the watering hole
+        if BAMBOO_GROVE in self.state.modules:
+            self.state.watering_hole_bamboo += self.state.plant_per_round
+
+        else:
+            self.state.watering_hole_plant += self.state.plant_per_round
+
         # Getting a new species for each player
         self.add_new_species()
 
@@ -122,18 +136,34 @@ class GameEngine:
             ) % self.state.number_players
             player = self.state.players[player_index]
 
-            for _ in range(self.state.difficulty.cards_to_draw):
-                player.hand.append(
-                    self.draw_card(self.state.nature_deck, self.state.nature_discard)
-                )
+            if not self.state.modules:
+                for _ in range(self.state.difficulty.cards_to_draw):
+                    player.hand.append(
+                        self.draw_card(self.state.nature_deck, self.state.nature_discard)
+                    )
+
+            else:
+                for _ in range(self.state.difficulty.cards_to_draw_modules):
+                    player.hand.append(
+                        self.draw_card(self.state.nature_deck, self.state.nature_discard)
+                    )
+
+                module_count = len(self.state.modules)
+                cards_per_module = {1: 3, 2: 2}.get(module_count, 1)
+
+                for module in self.state.modules:
+                    module_deck = self.state.module_decks[module]
+                    
+                    for _ in range(cards_per_module):
+                        player.hand.append(
+                            self.draw_card(module_deck.deck, module_deck.discard)
+                        )
 
     def add_new_species(self):
         """Add a new species to the player's list of species."""
         for player in self.state.players:
             solo_card = self.draw_card(player.solo_deck, player.solo_discard)
-            new_species = Species(
-                solo_card=solo_card, round_created=self.state.current_round
-            )
+            new_species = Species(solo_card=solo_card, round_created=self.state.current_round)
 
             if self.state.current_round == 1:
                 new_species.population = self.state.difficulty.round_one_population
@@ -165,15 +195,11 @@ class GameEngine:
         self.state.current_phase = GamePhase.ADAPTATION
 
         for offset in range(self.state.number_players):
-            player_index = (
-                self.state.first_player_index + offset
-            ) % self.state.number_players
+            player_index = (self.state.first_player_index + offset) % self.state.number_players
             player: Player = self.state.players[player_index]
             AdaptationRules.adapt_player(self.state, player, self.rng)
 
-    def assign_card_to_correct_candidate(
-        self, player: Player, temporary_hand: list[TraitCard]
-    ):
+    def assign_card_to_correct_candidate(self, player: Player, temporary_hand: list[TraitCard]):
         """Compatibility entry point for assigning one adaptation card."""
         if self.state is None:
             raise RuntimeError("The game has not been initialized.")
@@ -202,14 +228,10 @@ class GameEngine:
         # Starting with first player, players will alternate feeding turns.
         # The feeding phase continues until no species is hungry.
         hungry_populations_left = any(
-            species.is_hungry
-            for player in self.state.players
-            for species in player.species
+            species.is_hungry for player in self.state.players for species in player.species
         )
 
-        while hungry_populations_left and any(
-            not player.passing for player in self.state.players
-        ):
+        while hungry_populations_left and any(not player.passing for player in self.state.players):
             for player_offset in range(self.state.number_players):
                 player_index = (
                     self.state.first_player_index + player_offset
@@ -250,22 +272,18 @@ class GameEngine:
             return None
 
         highest_score = max(player.score for player in self.state.players)
-        score_leaders = [
-            player for player in self.state.players if player.score == highest_score
-        ]
+        score_leaders = [player for player in self.state.players if player.score == highest_score]
 
         if len(score_leaders) == 1:
             return score_leaders[0]
 
         highest_trait_count = max(
-            sum(len(species.trait_cards) for species in player.species)
-            for player in score_leaders
+            sum(len(species.trait_cards) for species in player.species) for player in score_leaders
         )
         trait_leaders = [
             player
             for player in score_leaders
-            if sum(len(species.trait_cards) for species in player.species)
-            == highest_trait_count
+            if sum(len(species.trait_cards) for species in player.species) == highest_trait_count
         ]
 
         if len(trait_leaders) == 1:

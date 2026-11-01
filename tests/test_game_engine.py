@@ -4,6 +4,7 @@ from unittest.mock import patch
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.state import Difficulty
 from src.nature_solo_bot.game.model.trait_cards import HUNTER
 
@@ -29,6 +30,21 @@ class GameEngineTest(unittest.TestCase):
         print(
             f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}"
         )
+
+    def test_initialize_bamboo_grove_deck_and_discard(self):
+        engine = GameEngine(seed=42, modules=[BAMBOO_GROVE])
+
+        state = engine.setup_game()
+        bamboo_decks = state.module_decks[BAMBOO_GROVE]
+
+        self.assertEqual(state.modules, [BAMBOO_GROVE])
+        self.assertIs(state.bamboo_grove_deck, bamboo_decks.deck)
+        self.assertIs(state.bamboo_grove_discard, bamboo_decks.discard)
+        self.assertIs(state.all_decks[0], state.nature_deck)
+        self.assertIs(state.all_decks[1], bamboo_decks.deck)
+        self.assertEqual(bamboo_decks.discard, [])
+        with self.assertRaisesRegex(RuntimeError, "deck and discard pile are empty"):
+            engine.draw_card(bamboo_decks.deck, bamboo_decks.discard)
 
     def test_run_game_sets_up_and_returns_completed_state(self):
         engine = GameEngine(seed=42)

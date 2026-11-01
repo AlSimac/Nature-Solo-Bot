@@ -1,7 +1,9 @@
 """Game state snapshot for the Nature-like solo board game."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+
+from nature_solo_bot.game.model.modules import BAMBOO_GROVE
 
 from .card import Card
 from .player import Player
@@ -17,39 +19,69 @@ class GamePhase(Enum):
 class Difficulty(Enum):
     """Starting-game settings controlled by the selected difficulty."""
 
-    EASIEST = (1, 5)
-    EASY = (2, 6)
-    MEDIUM = (3, 7)
-    HARD = (4, 8)
-    HARDEST = (5, 9)
+    EASIEST = (1, 5, 2)
+    EASY = (2, 6, 3)
+    MEDIUM = (3, 7, 4)
+    HARD = (4, 8, 5)
+    HARDEST = (5, 9, 6)
 
-    def __init__(self, round_one_population: int, cards_to_draw: int) -> None:
+    def __init__(self, round_one_population: int, cards_to_draw: int, cards_to_draw_modules: int) -> None:
         self.round_one_population = round_one_population
         self.cards_to_draw = cards_to_draw
+        self.cards_to_draw_modules = cards_to_draw_modules
+
+
+@dataclass
+class ModuleDeck:
+    """Draw and discard piles belonging to one game module."""
+
+    deck: list[Card] = field(default_factory=list)
+    discard: list[Card] = field(default_factory=list)
 
 
 class GameState:
     """Stores a complete snapshot of a game at any moment in time."""
 
-    def __init__(self, difficulty: Difficulty = Difficulty.MEDIUM):
+    def __init__(
+        self, difficulty: Difficulty = Difficulty.MEDIUM, modules: list[str] | None = None
+    ) -> None:
         """Initialize a fresh game state."""
-        self.current_round: int = 0
-        self.total_rounds: int = 4
-        self.current_phase: GamePhase = GamePhase.PREPARATION
-        self.number_players: int = 2
-        self.players: list[Player] = []
-        self.active_player_index: int = 0
-        self.nature_deck: list[Card] = []
-        self.nature_discard: list[Card] | None = []
-        self.turn_history: list = []
-        self.food_card: Card | None = None
-        self.plant_per_round: int = 0
-        self.watering_hole_plant: int = 0
-        self.game_over: bool = False
-        self.winner: None = None
+        # global settings
         self.seed: None = None
-        self.scenario_id: None = None
-        self.metadata: dict = {}
         self.max_traits = 3
         self.max_size = 4
         self.difficulty = difficulty
+        # rounds and phases
+        self.current_round: int = 0
+        self.total_rounds: int = 4
+        self.current_phase: GamePhase = GamePhase.PREPARATION
+        # players
+        self.number_players: int = 2
+        self.players: list[Player] = []
+        self.active_player_index: int = 0
+        # decks
+        self.modules = list(modules or [])
+        self.nature_deck: list[Card] = []
+        self.nature_discard: list[Card] | None = []
+        self.module_decks: dict[str, ModuleDeck] = {}
+
+        for module in self.modules:
+            if module == BAMBOO_GROVE:
+                self.module_decks[module] = ModuleDeck()
+                self.watering_hole_bamboo: int = 0
+                self.bamboo_grove_deck = self.module_decks[module].deck
+                self.bamboo_grove_discard = self.module_decks[module].discard
+            else:
+                raise ValueError(f"Unsupported game module: {module}")
+
+        self.all_decks: list[list[Card]] = [
+            self.nature_deck,
+            *(module_deck.deck for module_deck in self.module_decks.values()),
+        ]
+        # watering hole
+        self.food_card: Card | None = None
+        self.plant_per_round: int = 0
+        self.watering_hole_plant: int = 0
+        # endgame
+        self.game_over: bool = False
+        self.winner: None = None

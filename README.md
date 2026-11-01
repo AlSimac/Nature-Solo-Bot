@@ -1,6 +1,8 @@
 # Nature-Solo-Bot
 Nature board game Solo mode automa
 
+See [FEEDING_PHASE_FLOWCHART.md](./FEEDING_PHASE_FLOWCHART.md) for a complete chart of the feeding phase, including feeding priorities, trait triggers, hunting, and starvation.
+
 ## Disclaimer
 
 This is an unofficial, fan-created software project that simulates the solo variant of Nature through bot-vs-bot gameplay for automated simulations and experimentation.
