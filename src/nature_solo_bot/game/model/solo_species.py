@@ -14,11 +14,11 @@ class SoloSpecies:
     def __init__(
         self,
         name: str = "Solo Species",
-        effect_id: SoloEffect = None,
         pink_symbols: list[Symbol] | None = None,
         pink_symbols_last_round: list[Symbol] | None = None,
         blue_symbols: list[Symbol] | None = None,
         blue_symbols_last_round: list[Symbol] | None = None,
+        module: str | None = None,
     ):
         """Initialize a solo species with a name and traits."""
         self.name = name

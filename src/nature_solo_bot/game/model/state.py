@@ -25,7 +25,9 @@ class Difficulty(Enum):
     HARD = (4, 8, 5)
     HARDEST = (5, 9, 6)
 
-    def __init__(self, round_one_population: int, cards_to_draw: int, cards_to_draw_modules: int) -> None:
+    def __init__(
+        self, round_one_population: int, cards_to_draw: int, cards_to_draw_modules: int
+    ) -> None:
         self.round_one_population = round_one_population
         self.cards_to_draw = cards_to_draw
         self.cards_to_draw_modules = cards_to_draw_modules
@@ -63,14 +65,21 @@ class GameState:
         self.modules = list(modules or [])
         self.nature_deck: list[Card] = []
         self.nature_discard: list[Card] | None = []
+        # watering hole
+        self.food_card: Card | None = None
+        self.plant_per_round: int = 0
+        self.watering_hole_plant: int = 0
+        # Modules
         self.module_decks: dict[str, ModuleDeck] = {}
 
         for module in self.modules:
             if module == BAMBOO_GROVE:
                 self.module_decks[module] = ModuleDeck()
                 self.watering_hole_bamboo: int = 0
+                self.bamboo_per_round: int = 0
                 self.bamboo_grove_deck = self.module_decks[module].deck
                 self.bamboo_grove_discard = self.module_decks[module].discard
+
             else:
                 raise ValueError(f"Unsupported game module: {module}")
 
@@ -78,10 +87,6 @@ class GameState:
             self.nature_deck,
             *(module_deck.deck for module_deck in self.module_decks.values()),
         ]
-        # watering hole
-        self.food_card: Card | None = None
-        self.plant_per_round: int = 0
-        self.watering_hole_plant: int = 0
         # endgame
         self.game_over: bool = False
         self.winner: None = None

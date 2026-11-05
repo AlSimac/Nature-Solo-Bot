@@ -44,9 +44,7 @@ class AdaptationPhaseTest(unittest.TestCase):
             round_created=2,
         )
         player.species.extend([avid_species, next_species])
-        card = next(
-            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
-        )
+        card = next(card for card in Card.init_trait_decks() if card.solo_symbol == SymbolName.CAT)
         player.hand.append(card)
         temporary_hand: list = []
 
@@ -66,7 +64,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         engine.state = state
 
         solo_cards = engine.rng.sample(NATURE_SOLO_CARDS, 4)
-        nature_deck = Card.init_nature_deck()
+        nature_deck = Card.init_trait_decks()
         engine.rng.shuffle(nature_deck)
         for player_index, player in enumerate(state.players):
             for species_index in range(2):
@@ -143,9 +141,7 @@ class AdaptationPhaseTest(unittest.TestCase):
                     is_hunter = species_index != non_hunter_index
                     trait_count = 2 if is_hunter else 3
                     for card in cards[card_index : card_index + trait_count]:
-                        self.assertTrue(
-                            species.add_trait_card(card, max_traits=state.max_traits)
-                        )
+                        self.assertTrue(species.add_trait_card(card, max_traits=state.max_traits))
                     card_index += trait_count
                     if is_hunter:
                         self.assertTrue(
@@ -212,7 +208,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         state.current_round = 2
         state.first_player_index = 0
         state.players = [Player(name="Rani"), Player(name="Radwin")]
-        state.nature_deck = Card.init_nature_deck()
+        state.nature_deck = Card.init_trait_decks()
         engine.rng.shuffle(state.nature_deck)
         engine.state = state
 
@@ -221,9 +217,7 @@ class AdaptationPhaseTest(unittest.TestCase):
             (PREDATOR, PROPAGATOR, SCAVENGER),
         ]
         for player, player_solo_cards in zip(state.players, solo_cards):
-            for round_created, (solo_card, size) in enumerate(
-                zip(player_solo_cards, (1, 3, 4))
-            ):
+            for round_created, (solo_card, size) in enumerate(zip(player_solo_cards, (1, 3, 4))):
                 species = Species(solo_card=solo_card, round_created=round_created)
                 species.size = size
                 species.population = 3
@@ -256,9 +250,7 @@ class AdaptationPhaseTest(unittest.TestCase):
         for player in state.players:
             self.assertEqual(len(player.hand), 7)
             self.assertEqual([species.size for species in player.species], [1, 3, 4])
-            self.assertEqual(
-                [species.population for species in player.species], [3, 3, 3]
-            )
+            self.assertEqual([species.population for species in player.species], [3, 3, 3])
 
         print("\nHands at the beginning of round-two adaptation:")
         for player in state.players:
@@ -290,9 +282,7 @@ class AdaptationPhaseTest(unittest.TestCase):
             )
             if target is not None:
                 removed = [
-                    old_card
-                    for old_card in before[target][2]
-                    if old_card not in target.trait_cards
+                    old_card for old_card in before[target][2] if old_card not in target.trait_cards
                 ]
                 outcome = f"trait -> {target.solo_species.name}"
                 if removed:
@@ -310,9 +300,7 @@ class AdaptationPhaseTest(unittest.TestCase):
                 changes = []
                 for species, (size, population, _, was_hunter) in before.items():
                     if species.size != size:
-                        changes.append(
-                            f"{species.solo_species.name} size {size}->{species.size}"
-                        )
+                        changes.append(f"{species.solo_species.name} size {size}->{species.size}")
                     if species.population != population:
                         changes.append(
                             f"{species.solo_species.name} population {population}->{species.population}"
@@ -327,15 +315,8 @@ class AdaptationPhaseTest(unittest.TestCase):
                     ),
                     None,
                 )
-                if (
-                    card not in discarded_before
-                    and card in state.nature_discard
-                    and hunter_target
-                ):
-                    outcome = (
-                        f"trait -> {hunter_target.solo_species.name} "
-                        "(replaced by Hunter)"
-                    )
+                if card not in discarded_before and card in state.nature_discard and hunter_target:
+                    outcome = f"trait -> {hunter_target.solo_species.name} " "(replaced by Hunter)"
                 else:
                     outcome = "; ".join(changes) or "unassigned; returned to hand"
 
@@ -378,9 +359,7 @@ class AdaptationPhaseTest(unittest.TestCase):
             round_created=2,
         )
         player.species.extend([full_species, next_species])
-        card = next(
-            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
-        )
+        card = next(card for card in Card.init_trait_decks() if card.solo_symbol == SymbolName.CAT)
         player.hand.append(card)
         temporary_hand: list = []
 
@@ -404,10 +383,8 @@ class AdaptationPhaseTest(unittest.TestCase):
             solo_card=SoloSpecies(pink_symbols=[Symbol(SymbolName.GEAR)]),
             round_created=1,
         )
-        nature_cards = Card.init_nature_deck()
-        incoming_card = next(
-            card for card in nature_cards if card.solo_symbol == SymbolName.GEAR
-        )
+        nature_cards = Card.init_trait_decks()
+        incoming_card = next(card for card in nature_cards if card.solo_symbol == SymbolName.GEAR)
         existing_cards = [card for card in nature_cards if card is not incoming_card][
             : state.max_traits
         ]
@@ -441,9 +418,7 @@ class AdaptationPhaseTest(unittest.TestCase):
             round_created=1,
         )
         player.species.append(species)
-        card = next(
-            card for card in Card.init_nature_deck() if card.solo_symbol == SymbolName.CAT
-        )
+        card = next(card for card in Card.init_trait_decks() if card.solo_symbol == SymbolName.CAT)
         player.hand.append(card)
 
         engine.assign_card_to_correct_candidate(player, [])
@@ -471,17 +446,13 @@ class AdaptationPhaseTest(unittest.TestCase):
             ),
             round_created=1,
         )
-        existing_cards = Card.init_nature_deck()[: state.max_traits]
+        existing_cards = Card.init_trait_decks()[: state.max_traits]
         for existing_card in existing_cards:
-            self.assertTrue(
-                species.add_trait_card(existing_card, max_traits=state.max_traits)
-            )
+            self.assertTrue(species.add_trait_card(existing_card, max_traits=state.max_traits))
         player.species.append(species)
 
         incoming_card = next(
-            card
-            for card in Card.init_nature_deck()
-            if card.solo_symbol == SymbolName.CAT
+            card for card in Card.init_trait_decks() if card.solo_symbol == SymbolName.CAT
         )
         player.hand.append(incoming_card)
 
@@ -520,17 +491,13 @@ class AdaptationPhaseTest(unittest.TestCase):
             ),
             round_created=1,
         )
-        existing_cards = Card.init_nature_deck()[: state.max_traits]
+        existing_cards = Card.init_trait_decks()[: state.max_traits]
         for existing_card in existing_cards:
-            self.assertTrue(
-                species.add_trait_card(existing_card, max_traits=state.max_traits)
-            )
+            self.assertTrue(species.add_trait_card(existing_card, max_traits=state.max_traits))
         player.species.append(species)
 
         incoming_card = next(
-            card
-            for card in Card.init_nature_deck()
-            if card.solo_symbol == SymbolName.CAT
+            card for card in Card.init_trait_decks() if card.solo_symbol == SymbolName.CAT
         )
         player.hand.append(incoming_card)
 

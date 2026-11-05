@@ -42,9 +42,7 @@ class AdaptationRules:
                 temporary_hand.append(player.hand.pop(0))
 
         while player.hand:
-            AdaptationRules.assign_card_to_correct_candidate(
-                state, player, temporary_hand, rng
-            )
+            AdaptationRules.assign_card_to_correct_candidate(state, player, temporary_hand, rng)
 
         AdaptationRules._refresh_player_hand(player, temporary_hand, rng)
 
@@ -113,12 +111,8 @@ class AdaptationRules:
         """Use the next leftover card to increase a matching hunter's size or population."""
         picked_card = player.hand.pop(0)
 
-        for candidate, _ in AdaptationRules._candidate_symbols_for(
-            player, picked_card.solo_symbol
-        ):
-            if AdaptationRules._apply_species_increase(
-                state, candidate, picked_card, increase
-            ):
+        for candidate, _ in AdaptationRules._candidate_symbols_for(player, picked_card.solo_symbol):
+            if AdaptationRules._apply_species_increase(state, candidate, picked_card, increase):
                 return
 
         temporary_hand.append(picked_card)
@@ -158,12 +152,11 @@ class AdaptationRules:
         if increase == SymbolIncrease.SIZE:
             species_max_size = min(
                 state.max_size,
-                2
-                if any(
-                    trait.effect_id == AVID_FORAGER.effect_id
-                    for trait in candidate.traits
-                )
-                else state.max_size,
+                (
+                    2
+                    if any(trait.effect_id == AVID_FORAGER.effect_id for trait in candidate.traits)
+                    else state.max_size
+                ),
             )
 
             if candidate.size >= species_max_size:

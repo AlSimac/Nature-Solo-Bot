@@ -15,7 +15,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
     def test_trait_card_returns_to_hand_when_species_goes_extinct(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
-        card = Card.init_nature_deck()[0]
+        card = Card.init_trait_decks()[0]
         player.species.append(species)
         player.hand.append(card)
         original_food_value = card.food_value
@@ -51,7 +51,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
     def test_replaced_trait_card_goes_to_nature_discard(self):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
-        card = Card.init_nature_deck()[0]
+        card = Card.init_trait_decks()[0]
         hunter_card = HunterCard()
         nature_discard = []
         hunter_deck = []
@@ -100,7 +100,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
     def test_replacing_hunter_trait_with_another_trait_turns_species_into_forager(self):
         species = Species(solo_card=SoloSpecies(), round_created=1)
         hunter_card = HunterCard()
-        other_card = Card.init_nature_deck()[0]
+        other_card = Card.init_trait_decks()[0]
         species.add_trait_card(hunter_card, max_traits=3)
         self.assertTrue(species.is_hunter)
 
@@ -117,9 +117,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
     def test_trait_without_effect_id_does_not_make_species_a_hunter(self):
         species = Species(solo_card=SoloSpecies(), round_created=1)
 
-        self.assertTrue(
-            species.add_trait_card(TraitCard(Trait(name="Unidentified")), max_traits=3)
-        )
+        self.assertTrue(species.add_trait_card(TraitCard(Trait(name="Unidentified")), max_traits=3))
 
         self.assertFalse(species.is_hunter)
 
@@ -127,7 +125,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         player = Player(name="Rani")
         species = Species(solo_card=SoloSpecies(), round_created=1)
         player.species.append(species)
-        cards = Card.init_nature_deck()[:3]
+        cards = Card.init_trait_decks()[:3]
 
         for card in cards:
             player.hand.append(card)

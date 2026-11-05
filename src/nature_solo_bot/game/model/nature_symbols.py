@@ -1,6 +1,7 @@
 from .symbol import SymbolName
 from .trait import Trait
 from .trait_cards import (
+    ARBOREAL,
     AVID_FORAGER,
     CLAWED,
     FAST,
@@ -12,7 +13,7 @@ from .trait_cards import (
     TUSKED,
 )
 
-SYMBOL_BY_TRAIT_AND_FOOD: dict[tuple[Trait, int], SymbolName] = {
+NATURE_SYMBOL_BY_TRAIT_AND_FOOD: dict[tuple[Trait, int], SymbolName] = {
     (CLAWED, 1): SymbolName.SEEDLING,
     (CLAWED, 2): SymbolName.GEAR,
     (CLAWED, 3): SymbolName.GEAR,
@@ -49,4 +50,8 @@ SYMBOL_BY_TRAIT_AND_FOOD: dict[tuple[Trait, int], SymbolName] = {
     (AVID_FORAGER, 2): SymbolName.SEEDLING,
     (AVID_FORAGER, 3): SymbolName.SEEDLING,
     (AVID_FORAGER, 4): SymbolName.SEEDLING,
+}
+
+BAMBOO_GROVE_SYMBOL_BY_TRAIT_AND_FOOD: dict[tuple[Trait, int], SymbolName] = {
+    (ARBOREAL, 1): SymbolName.SEEDLING,
 }

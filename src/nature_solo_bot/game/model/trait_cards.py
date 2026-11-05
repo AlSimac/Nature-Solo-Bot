@@ -15,6 +15,7 @@ CLAWED = Trait(
 FAST = Trait(
     name="Fast",
     effect_id="fast",
+    is_evasive=True,
 )
 HORNED = Trait(
     name="Horned",
@@ -49,3 +50,38 @@ AVID_FORAGER = Trait(
     effect_id="avid_forager",
 )
 NATURE_TRAITS = [CLAWED, FAST, HORNED, OPPORTUNISTIC, PLATED, SCAVENGING, SOCIAL, TUSKED]
+# ----- Bamboo Grove Traits -----
+ARBOREAL = Trait(
+    name="Arboreal",
+    effect_id="arboreal",
+    attack_modifier=1,
+    is_evasive=True,
+)
+FOLIVORE = Trait(
+    name="Folivore",
+    effect_id="folivore",
+    defense_modifier=1,
+)
+MONOPHAGOUS = Trait(
+    name="Monophagous",
+    effect_id="monophagous",
+)
+ROOT_EATING = Trait(
+    name="Root Eating",
+    effect_id="root_eating",
+    defense_modifier=1,
+)
+STALKING = Trait(
+    name="Stalking",
+    effect_id="stalking",
+)
+# Promo traits
+LONG_DIGESTION = Trait(
+    name="Long Digestion",
+    effect_id="long_digestion",
+)
+TERRITORIAL = Trait(
+    name="Territorial",
+    effect_id="territorial",
+)
+BAMBOO_GROVE_TRAITS = [ARBOREAL, FOLIVORE, MONOPHAGOUS, ROOT_EATING, STALKING]

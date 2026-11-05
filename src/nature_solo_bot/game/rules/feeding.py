@@ -44,15 +44,11 @@ class FeedingRules:
                 if available_food <= 0:
                     continue
 
-                if not FeedingRules._forage_with_refill(
-                    state, active_player, species, rng
-                ):
+                if not FeedingRules._forage_with_refill(state, active_player, species, rng):
                     continue
 
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
-                    if not FeedingRules._forage_with_refill(
-                        state, active_player, species, rng
-                    ):
+                    if not FeedingRules._forage_with_refill(state, active_player, species, rng):
                         break
 
                 successful_feeding = True

@@ -52,7 +52,7 @@ class ScoringPhaseTest(unittest.TestCase):
         engine, state = self._create_engine_with_players(current_round=2)
         player = state.players[0]
         species = Species(SoloSpecies(), round_created=1)
-        cards = Card.init_nature_deck()[:2]
+        cards = Card.init_trait_decks()[:2]
         for card in cards:
             self.assertTrue(species.add_trait_card(card, max_traits=state.max_traits))
         species.lost_population = 1
@@ -70,7 +70,7 @@ class ScoringPhaseTest(unittest.TestCase):
         engine, state = self._create_engine_with_players(current_round=2)
         player = state.players[0]
         species = Species(SoloSpecies(), round_created=1)
-        nature_card = Card.init_nature_deck()[0]
+        nature_card = Card.init_trait_decks()[0]
         hunter_card = HunterCard()
         self.assertTrue(species.add_trait_card(nature_card, max_traits=state.max_traits))
         self.assertTrue(species.add_trait_card(hunter_card, max_traits=state.max_traits))

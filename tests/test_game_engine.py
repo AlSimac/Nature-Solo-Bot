@@ -6,7 +6,7 @@ from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.state import Difficulty
-from src.nature_solo_bot.game.model.trait_cards import HUNTER
+from src.nature_solo_bot.game.model.trait_cards import BAMBOO_GROVE_TRAITS, HUNTER
 
 
 class GameEngineTest(unittest.TestCase):
@@ -42,6 +42,11 @@ class GameEngineTest(unittest.TestCase):
         self.assertIs(state.bamboo_grove_discard, bamboo_decks.discard)
         self.assertIs(state.all_decks[0], state.nature_deck)
         self.assertIs(state.all_decks[1], bamboo_decks.deck)
+        self.assertEqual(
+            len(bamboo_decks.deck),
+            len(BAMBOO_GROVE_TRAITS) * len(Card.NATURE_FOOD_VALUES),
+        )
+        self.assertEqual({card.trait for card in bamboo_decks.deck}, set(BAMBOO_GROVE_TRAITS))
         self.assertEqual(bamboo_decks.discard, [])
         with self.assertRaisesRegex(RuntimeError, "deck and discard pile are empty"):
             engine.draw_card(bamboo_decks.deck, bamboo_decks.discard)
@@ -60,7 +65,7 @@ class GameEngineTest(unittest.TestCase):
         first_player, second_player = state.players
         first_player.score = second_player.score = 10
 
-        cards = Card.init_nature_deck()
+        cards = Card.init_trait_decks()
         first_player.species[0].add_trait_card(cards[0], max_traits=state.max_traits)
         second_player.species[0].add_trait_card(cards[1], max_traits=state.max_traits)
         second_player.species[0].add_trait_card(cards[2], max_traits=state.max_traits)
@@ -73,7 +78,7 @@ class GameEngineTest(unittest.TestCase):
         first_player, second_player = state.players
         first_player.score = second_player.score = 10
 
-        cards = Card.init_nature_deck()
+        cards = Card.init_trait_decks()
         first_player.species[0].add_trait_card(cards[0], max_traits=state.max_traits)
         second_player.species[0].add_trait_card(cards[1], max_traits=state.max_traits)
 

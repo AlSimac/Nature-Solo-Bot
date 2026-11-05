@@ -1,5 +1,6 @@
 from random import Random
 
+from ...engine.action_applier import ActionApplier
 from ..model.card import Card
 from ..model.hunter_card import HunterCard
 from ..model.player import Player
@@ -118,3 +119,33 @@ class PreparationRules:
             return False
 
         return attached
+
+    @staticmethod
+    @staticmethod
+    def add_new_species(state: GameState, rng: Random) -> None:
+        """Add a new species to the player's list of species."""
+        for player in state.players:
+            solo_card = ActionApplier.draw_card(player.solo_deck, rng, player.solo_discard)
+            new_species = Species(solo_card=solo_card, round_created=state.current_round)
+
+            if state.current_round == 1:
+                new_species.population = state.difficulty.round_one_population
+
+            new_species.population += player.lost_population
+            player.lost_population = 0
+            new_species.size = min(
+                new_species.size + player.extinct_size,
+                state.max_size,
+            )
+            player.extinct_size = 0
+            player.species.append(new_species)
+
+            if solo_card.effect_id:
+                PreparationRules.solo_species_effect_when_played(
+                    new_species,
+                    player,
+                    max_traits=state.max_traits,
+                    nature_discard=state.nature_discard,
+                    rng=rng,
+                    state=state,
+                )

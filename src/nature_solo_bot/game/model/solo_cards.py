@@ -1,6 +1,7 @@
 from .solo_species import SoloEffect, SoloSpecies
 from .symbol import Symbol, SymbolIncrease, SymbolName
 
+# ----- Nature Solo Species -----
 EVADER = SoloSpecies(
     name="Evader",
     pink_symbols=[
@@ -176,4 +177,36 @@ NATURE_SOLO_CARDS = [
     PROPAGATOR,
     SCAMP,
     SCAVENGER,
+]
+# ----- Bamboo Grove Solo Species -----
+CHI_CHI = SoloSpecies(
+    name="Chi Chi",
+    pink_symbols=[
+        Symbol(SymbolName.VULTURE),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.LEAF),
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.SIZE, make_hunter=True),
+    ],
+    pink_symbols_last_round=[
+        Symbol(SymbolName.VULTURE),
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE),
+    ],
+    blue_symbols=[
+        Symbol(SymbolName.VULTURE),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.SEEDLING),
+        Symbol(SymbolName.GEAR, make_hunter=True),
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.SIZE),
+    ],
+    blue_symbols_last_round=[
+        Symbol(SymbolName.VULTURE),
+        Symbol(SymbolName.CAT),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.SEEDLING, make_hunter=True),
+    ],
+)
+BAMBOO_GROVE_SOLO_CARDS = [
+    CHI_CHI,
 ]

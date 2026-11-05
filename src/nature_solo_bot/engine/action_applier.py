@@ -1,10 +1,13 @@
 """Action application stub."""
 
 from random import Random
+from typing import TypeVar
 
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import GameState
+
+T = TypeVar("T")
 
 
 class ActionApplier:
@@ -43,3 +46,21 @@ class ActionApplier:
         # Killing the last species triggers extinction
         if species.population == 0:
             player.return_extinct_species(species)
+
+    @staticmethod
+    def draw_card(
+        deck: list[T],
+        rng: Random,
+        discard: list[T] | None = None,
+    ) -> T:
+        """Remove and return the top card from the deck."""
+        # Reshuffle the discard pile into the deck if the deck is empty
+        if not deck and discard:
+            deck.extend(discard)
+            discard.clear()
+            rng.shuffle(deck)
+
+        if not deck:
+            raise RuntimeError("Cannot draw a card: the deck and discard pile are empty.")
+
+        return deck.pop()
