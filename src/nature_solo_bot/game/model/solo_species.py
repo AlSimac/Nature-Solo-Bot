@@ -18,7 +18,6 @@ class SoloSpecies:
         pink_symbols_last_round: list[Symbol] | None = None,
         blue_symbols: list[Symbol] | None = None,
         blue_symbols_last_round: list[Symbol] | None = None,
-        module: str | None = None,
     ):
         """Initialize a solo species with a name and traits."""
         self.name = name

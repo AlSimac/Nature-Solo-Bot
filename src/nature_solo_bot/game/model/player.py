@@ -1,5 +1,12 @@
 """Player model for a Nature-like board game."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nature_solo_bot.game.model.state import GameState
+
 from .card import Card
 from .hunter_card import HunterCard
 from .solo_species import SoloSpecies
@@ -44,8 +51,10 @@ class Player:
         """Move a card from this player's hand onto one of their species."""
         if species not in self.species:
             raise ValueError("Cannot attach a trait card to another player's species.")
+
         if card not in self.hand:
             raise ValueError("The trait card must be in this player's hand.")
+
         if not species.add_trait_card(card, max_traits=max_traits):
             return False
 
@@ -57,29 +66,38 @@ class Player:
         species: Species,
         old_card: TraitCard,
         new_card: TraitCard,
-        nature_discard: list[Card],
+        state: GameState,
         *,
         max_traits: int,
     ) -> bool:
         """Replace an attached card and return it to its proper supply."""
         if species not in self.species:
             raise ValueError("Cannot replace a trait on another player's species.")
+
+        if isinstance(old_card, Card):
+            discard_pile = state.trait_discard_pile(old_card)
+        elif isinstance(old_card, HunterCard):
+            discard_pile = []
+        else:
+            raise TypeError(f"Unsupported trait card type: {type(old_card).__name__}")
+
         if not species.replace_trait_card(old_card, new_card, max_traits=max_traits):
             return False
 
-        self._return_trait_card(old_card, nature_discard)
+        self._return_trait_card(old_card, discard_pile)
         return True
 
     @staticmethod
     def _return_trait_card(
         card: TraitCard,
-        nature_discard: list[Card],
+        discard_pile: list[Card],
     ) -> None:
+        """Discard a trait card from a species."""
         if isinstance(card, HunterCard):
             return
 
         elif isinstance(card, Card):
-            nature_discard.append(card)
+            discard_pile.append(card)
 
         else:
             raise TypeError(f"Unsupported trait card type: {type(card).__name__}")

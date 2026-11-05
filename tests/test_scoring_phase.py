@@ -4,6 +4,7 @@ from unittest.mock import patch
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species, TreeColor
@@ -11,9 +12,11 @@ from src.nature_solo_bot.game.model.state import GamePhase, GameState
 
 
 class ScoringPhaseTest(unittest.TestCase):
-    def _create_engine_with_players(self, current_round: int = 1):
+    def _create_engine_with_players(
+        self, current_round: int = 1, modules: list[str] | None = None
+    ):
         engine = GameEngine(seed=42)
-        state = GameState()
+        state = GameState(modules=modules)
         state.current_round = current_round
         state.first_player_index = 0
         state.players = [Player(name="Rani"), Player(name="Radwin")]
@@ -84,6 +87,24 @@ class ScoringPhaseTest(unittest.TestCase):
         self.assertEqual(species.trait_cards, [nature_card])
         self.assertEqual(state.nature_discard, [])
         self.assertEqual(species.lost_population, 0)
+
+    def test_lost_population_discards_module_trait_to_its_module_pile(self):
+        engine, state = self._create_engine_with_players(
+            current_round=2,
+            modules=[BAMBOO_GROVE],
+        )
+        module_card = Card.init_trait_decks(module=BAMBOO_GROVE)[0]
+        species = Species(SoloSpecies(), round_created=1)
+        self.assertTrue(species.add_trait_card(module_card, max_traits=state.max_traits))
+        species.lost_population = 1
+        state.players[0].species.append(species)
+
+        with patch.object(engine.rng, "choice", return_value=module_card):
+            engine.run_scoring_phase()
+
+        self.assertEqual(state.nature_discard, [])
+        self.assertEqual(state.module_decks[BAMBOO_GROVE].discard, [module_card])
+        self.assertEqual(species.trait_cards, [])
 
     def test_lost_population_without_traits_does_not_fail(self):
         engine, state = self._create_engine_with_players(current_round=2)

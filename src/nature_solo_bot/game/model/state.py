@@ -90,3 +90,17 @@ class GameState:
         # endgame
         self.game_over: bool = False
         self.winner: None = None
+
+    def trait_discard_pile(self, card: Card) -> list[Card]:
+        """Return the discard pile belonging to a trait card's deck."""
+        if card.deck == "Nature":
+            if self.nature_discard is None:
+                raise RuntimeError("The Nature discard pile is not initialized.")
+            return self.nature_discard
+
+        try:
+            return self.module_decks[card.deck].discard
+        except KeyError as error:
+            raise ValueError(
+                f"No discard pile is configured for trait deck {card.deck!r}."
+            ) from error

@@ -46,4 +46,4 @@ class ScoringRules:
             species.remove_trait_card(removed_trait)
 
             if isinstance(removed_trait, Card):
-                state.nature_discard.append(removed_trait)
+                state.trait_discard_pile(removed_trait).append(removed_trait)

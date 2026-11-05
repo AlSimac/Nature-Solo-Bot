@@ -60,6 +60,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
     @staticmethod
@@ -83,6 +84,7 @@ class PreparationRules:
                 max_traits=max_traits,
                 nature_discard=nature_discard,
                 rng=rng,
+                state=state,
             )
 
     @staticmethod
@@ -91,7 +93,7 @@ class PreparationRules:
         player: Player,
         *,
         max_traits: int,
-        nature_discard: list[Card],
+        state: GameState,
         rng: Random,
         replace_random_trait: bool = False,
     ) -> bool:
@@ -111,7 +113,7 @@ class PreparationRules:
                 species,
                 replacement_card,
                 hunter_card,
-                nature_discard,
+                state,
                 max_traits=max_traits,
             )
 

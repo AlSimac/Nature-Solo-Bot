@@ -3,9 +3,11 @@ import unittest
 
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
+from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait import Trait
 from src.nature_solo_bot.game.model.trait_card import TraitCard
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
@@ -53,8 +55,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         species = Species(solo_card=SoloSpecies(), round_created=1)
         card = Card.init_trait_decks()[0]
         hunter_card = HunterCard()
-        nature_discard = []
-        hunter_deck = []
+        state = GameState()
         player.species.append(species)
         player.hand.append(card)
         player.play_trait_card(card, species, max_traits=3)
@@ -63,15 +64,36 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             species,
             card,
             hunter_card,
-            nature_discard,
+            state,
             max_traits=3,
         )
 
         self.assertTrue(replaced)
         self.assertNotIn(card, player.hand)
         self.assertIs(species.trait_cards[0], hunter_card)
-        self.assertIs(nature_discard[0], card)
+        self.assertIs(state.nature_discard[0], card)
         self.assertTrue(species.is_hunter)
+
+    def test_replaced_module_trait_card_goes_to_its_module_discard(self):
+        player = Player(name="Rani")
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        card = Card.init_trait_decks(module=BAMBOO_GROVE)[0]
+        state = GameState(modules=[BAMBOO_GROVE])
+        player.species.append(species)
+        player.hand.append(card)
+        player.play_trait_card(card, species, max_traits=3)
+
+        replaced = player.replace_trait_card(
+            species,
+            card,
+            HunterCard(),
+            state,
+            max_traits=3,
+        )
+
+        self.assertTrue(replaced)
+        self.assertEqual(state.nature_discard, [])
+        self.assertEqual(state.module_decks[BAMBOO_GROVE].discard, [card])
 
     def test_extinction_removes_hunter_card_without_a_return_pile(self):
         player = Player(name="Rani")
@@ -136,7 +158,7 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             species,
             player,
             max_traits=3,
-            nature_discard=nature_discard,
+            state=GameState(),
             rng=random.Random(42),
         )
 

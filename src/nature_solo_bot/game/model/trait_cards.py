@@ -74,6 +74,7 @@ ROOT_EATING = Trait(
 STALKING = Trait(
     name="Stalking",
     effect_id="stalking",
+    hidden_hunter=True,
 )
 # Promo traits
 LONG_DIGESTION = Trait(

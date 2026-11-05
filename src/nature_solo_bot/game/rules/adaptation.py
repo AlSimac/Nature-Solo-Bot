@@ -90,7 +90,7 @@ class AdaptationRules:
                     candidate,
                     player,
                     max_traits=state.max_traits,
-                    nature_discard=state.nature_discard,
+                    state=state,
                     rng=rng,
                     replace_random_trait=True,
                 )

@@ -66,6 +66,7 @@ class Species:
         ):
             self.trait_cards.append(card)
             return True
+
         return False
 
     def remove_trait_card(self, card: TraitCard) -> bool:
@@ -85,10 +86,7 @@ class Species:
         if (
             old_card not in self.trait_cards
             or len(self.trait_cards) > max_traits
-            or (
-                new_card.trait.effect_id == AVID_FORAGER.effect_id
-                and self.size > 2
-            )
+            or (new_card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2)
         ):
             return False
 
