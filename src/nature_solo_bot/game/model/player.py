@@ -76,8 +76,10 @@ class Player:
 
         if isinstance(old_card, Card):
             discard_pile = state.trait_discard_pile(old_card)
+
         elif isinstance(old_card, HunterCard):
             discard_pile = []
+
         else:
             raise TypeError(f"Unsupported trait card type: {type(old_card).__name__}")
 
@@ -92,12 +94,16 @@ class Player:
         card: TraitCard,
         discard_pile: list[Card],
     ) -> None:
-        """Discard a trait card from a species."""
+        """Discard a trait card from a species.
+
+        Face-up discard piles keep the newest card at index 0 so it can be treated as the pile's
+        top.
+        """
         if isinstance(card, HunterCard):
             return
 
         elif isinstance(card, Card):
-            discard_pile.append(card)
+            discard_pile.insert(0, card)
 
         else:
             raise TypeError(f"Unsupported trait card type: {type(card).__name__}")
@@ -112,7 +118,7 @@ class Player:
 
         self.extinct_size += species.size
         self.species.remove(species)
-        self.solo_discard.append(species.solo_species)
+        self.solo_discard.insert(0, species.solo_species)
 
         for card in list(species.trait_cards):
             if isinstance(card, Card):

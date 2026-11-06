@@ -19,6 +19,7 @@ from ..model.trait_cards import (
 
 PLANT = "plant_food"
 MEAT = "meat_food"
+BAMBOO = "bamboo_food"
 
 
 class FeedingRules:

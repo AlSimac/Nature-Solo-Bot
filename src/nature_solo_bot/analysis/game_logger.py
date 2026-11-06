@@ -305,7 +305,8 @@ class GameLogger:
         assert state.nature_discard is not None
         previous_discard_size = len(state.nature_discard)
         self._original_discard(state, player, rng)
-        for card in state.nature_discard[previous_discard_size:]:
+        new_cards = state.nature_discard[: len(state.nature_discard) - previous_discard_size]
+        for card in new_cards:
             self._record_feeding_action(
                 f"{player.name} discarded {self.card_name(card)} for "
                 f"{card.food_value} plant food"

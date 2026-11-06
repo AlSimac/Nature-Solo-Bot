@@ -18,10 +18,15 @@ class ActionApplier:
         player: Player,
         rng: Random,
     ):
-        """Discard a card to add food to the watering hole"""
+        """Discard a card to add food to the watering hole.
+
+        The Nature discard pile is face-up, so the most recently discarded card sits at the
+        front of the list while the draw deck keeps its top at the back of the list.
+        """
         rng.shuffle(player.hand)
         discarded_card = player.hand.pop()
-        state.nature_discard.append(discarded_card)
+        if state.nature_discard is not None:
+            state.nature_discard.insert(0, discarded_card)
         state.watering_hole_plant += discarded_card.food_value
 
     def kill_populations(state: GameState, loss: int, species: Species, player: Player):
@@ -53,10 +58,15 @@ class ActionApplier:
         rng: Random,
         discard: list[T] | None = None,
     ) -> T:
-        """Remove and return the top card from the deck."""
-        # Reshuffle the discard pile into the deck if the deck is empty
+        """Remove and return the top card from a face-down draw deck.
+
+        Discard piles are face-up, so their most recent card sits at index 0. Rebuilding a deck
+        from a discard therefore needs to reverse the pile before appending it to the deck: the
+        discard pile's top becomes the deck's top when the deck is later drawn from its end.
+        """
+        # Reshuffle the discard pile into the draw deck if the deck is empty.
         if not deck and discard:
-            deck.extend(discard)
+            deck.extend(reversed(discard))
             discard.clear()
             rng.shuffle(deck)
 

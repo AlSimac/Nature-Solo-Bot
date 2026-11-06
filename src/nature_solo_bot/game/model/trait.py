@@ -23,9 +23,14 @@ class Trait:
         attack_modifier: int = 0,
         defense_modifier: int = 0,
         effects: tuple[TraitEffect, ...] = (),
+        *,
+        is_evasive: bool = False,
+        hidden_hunter: bool = False,
     ):
         self.name = name
         self.effect_id = effect_id
         self.attack_modifier = attack_modifier
         self.defense_modifier = defense_modifier
         self.effects = effects
+        self.is_evasive = is_evasive
+        self.hidden_hunter = hidden_hunter

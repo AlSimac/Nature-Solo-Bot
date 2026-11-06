@@ -60,14 +60,32 @@ class Species:
 
     def add_trait_card(self, card: TraitCard, *, max_traits: int) -> bool:
         """Give a trait to a species"""
-        if not (
-            (len(self.trait_cards) >= max_traits)
-            or (card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2)
-        ):
+        if self.can_species_take_trait(card, max_traits=max_traits):
             self.trait_cards.append(card)
             return True
 
         return False
+
+    def can_species_take_trait(self, card: TraitCard, *, max_traits: int) -> bool:
+        """Method to check if the species is able to be given the card as a trait"""
+        take_trait = True
+
+        # Max traits reached
+        if len(self.trait_cards) >= max_traits and not (
+            (
+                # exception: The trait is a hidden hunter trait
+                # and the pecies has the Hunter trait
+                HUNTER.effect_id in [trait.effect_id for trait in self.traits]
+                and card.trait.hidden_hunter
+            )
+        ):
+            take_trait = False
+
+        # Species size >2 cannot take Avid Forager
+        if card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2:
+            take_trait = False
+
+        return take_trait
 
     def remove_trait_card(self, card: TraitCard) -> bool:
         if card not in self.trait_cards:

@@ -6,7 +6,7 @@ from ..model.species import Species
 from ..model.state import GameState
 from ..model.symbol import Symbol, SymbolIncrease, SymbolName
 from ..model.trait_card import TraitCard
-from ..model.trait_cards import AVID_FORAGER
+from ..model.trait_cards import AVID_FORAGER, HUNTER
 from .preparation import PreparationRules
 
 
@@ -81,6 +81,23 @@ class AdaptationRules:
                     picked_card,
                     max_traits=state.max_traits,
                 )
+
+                # If a species with Hunter is given a hidden hunter trait,
+                # remove the Hunter trait
+                if (
+                    HUNTER.effect_id in [trait.effect_id for trait in candidate.traits]
+                    and picked_card.trait.hidden_hunter
+                ):
+                    candidate.remove_trait_card(
+                        next(
+                            (
+                                card
+                                for card in candidate.trait_cards
+                                if card.trait.effect_id == HUNTER.effect_id
+                            ),
+                            None,
+                        )
+                    )
 
             if not candidate_assigned:
                 continue
@@ -170,5 +187,5 @@ class AdaptationRules:
         else:
             return False
 
-        state.nature_discard.append(picked_card)
+        state.nature_discard.insert(0, picked_card)
         return True
