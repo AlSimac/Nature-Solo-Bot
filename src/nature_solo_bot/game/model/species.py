@@ -25,6 +25,7 @@ class Species:
         self.size: int = 1
         self.plant_food: int = 0
         self.meat_food: int = 0
+        self.bamboo_food: int = 0
         self.tree_color = TreeColor.PINK
         self.solo_symbols = solo_card.pink_symbols
         self.lost_population: int = 0

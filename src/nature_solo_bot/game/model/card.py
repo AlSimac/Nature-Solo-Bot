@@ -13,12 +13,12 @@ from .symbol import SymbolName
 from .trait_card import TraitCard
 from .trait_cards import AVID_FORAGER, NATURE_TRAITS
 
+NATURE = "nature"
+NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
 
 class Card(TraitCard):
     """Represents a card in the game."""
-
-    NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
-
+   
     def __init__(
         self,
         name: str,
@@ -41,9 +41,9 @@ class Card(TraitCard):
 
         # Core Nature trait deck
         if module is None:
-            deck_name = "Nature"
+            deck_name = NATURE
             traits = [*NATURE_TRAITS]
-            food_values = Card.NATURE_FOOD_VALUES
+            food_values = NATURE_FOOD_VALUES
 
             if promo:
                 traits.append(AVID_FORAGER)

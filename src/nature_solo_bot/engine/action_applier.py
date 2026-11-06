@@ -3,11 +3,19 @@
 from random import Random
 from typing import TypeVar
 
+from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
+
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import GameState
 
 T = TypeVar("T")
+
+FOOD_DISCARD_PRIORITIES = {
+    True: ("plant_food", "meat_food", "bamboo_food"),
+    False: ("bamboo_food", "plant_food", "meat_food"),
+}
 
 
 class ActionApplier:
@@ -25,9 +33,14 @@ class ActionApplier:
         """
         rng.shuffle(player.hand)
         discarded_card = player.hand.pop()
-        if state.nature_discard is not None:
-            state.nature_discard.insert(0, discarded_card)
-        state.watering_hole_plant += discarded_card.food_value
+        discard_pile = state.trait_discard_pile(discarded_card)
+        discard_pile.insert(0, discarded_card)
+
+        if discarded_card.deck == BAMBOO_GROVE:
+            state.watering_hole_bamboo += discarded_card.food_value
+
+        else:
+            state.watering_hole_plant += discarded_card.food_value
 
     def kill_populations(state: GameState, loss: int, species: Species, player: Player):
         """Kill populations of a species"""
@@ -38,11 +51,14 @@ class ActionApplier:
         """Kill one population of a species"""
         # If the species is fully-fed, the killed population was carrying 1 food
         if species.total_food == species.population:
-            if species.plant_food > 0:
-                species.plant_food -= 1
+            priorities = FOOD_DISCARD_PRIORITIES[MONOPHAGOUS in species.traits]
 
-            elif species.meat_food > 0:
-                species.meat_food -= 1
+            for food_type in priorities:
+                food_count = getattr(species, food_type)
+                
+                if food_count > 0:
+                    setattr(species, food_type, food_count - 1)
+                    break
 
         species.population -= 1
         species.lost_population += 1

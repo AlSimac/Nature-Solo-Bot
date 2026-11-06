@@ -5,7 +5,7 @@ from enum import Enum
 
 from nature_solo_bot.game.model.modules import BAMBOO_GROVE
 
-from .card import Card
+from .card import NATURE, Card
 from .player import Player
 
 
@@ -93,13 +93,15 @@ class GameState:
 
     def trait_discard_pile(self, card: Card) -> list[Card]:
         """Return the discard pile belonging to a trait card's deck."""
-        if card.deck == "Nature":
+        if card.deck == NATURE:
             if self.nature_discard is None:
                 raise RuntimeError("The Nature discard pile is not initialized.")
+            
             return self.nature_discard
 
         try:
             return self.module_decks[card.deck].discard
+        
         except KeyError as error:
             raise ValueError(
                 f"No discard pile is configured for trait deck {card.deck!r}."

@@ -3,6 +3,7 @@ from random import Random
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from src.nature_solo_bot.engine.action_applier import ActionApplier
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
@@ -14,6 +15,7 @@ from src.nature_solo_bot.game.model.trait_cards import (
     CLAWED,
     FAST,
     HORNED,
+    MONOPHAGOUS,
     OPPORTUNISTIC,
     PLATED,
     SCAVENGING,
@@ -24,6 +26,31 @@ from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_population_loss_discards_one_food_by_trait_priority(self):
+        for is_monophagous, expected_food_type in (
+            (True, "plant_food"),
+            (False, "bamboo_food"),
+        ):
+            with self.subTest(is_monophagous=is_monophagous):
+                species = Species(solo_card=SoloSpecies(), round_created=1)
+                species.population = 2
+                species.plant_food = 1
+                species.meat_food = 1
+                species.bamboo_food = 1
+                if is_monophagous:
+                    species.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+
+                player = Player(name="Food priority test")
+                ActionApplier.kill_one_population(GameState(), species, player)
+
+                self.assertEqual(
+                    (species.plant_food, species.meat_food, species.bamboo_food),
+                    tuple(
+                        0 if food_type == expected_food_type else 1
+                        for food_type in ("plant_food", "meat_food", "bamboo_food")
+                    ),
+                )
+
     def test_avid_forager_discards_before_bonus_forage(self):
         player = Player(name="Foraging player")
         forager = Species(solo_card=SoloSpecies(), round_created=1)
