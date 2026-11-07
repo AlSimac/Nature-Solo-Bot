@@ -69,13 +69,13 @@ class GameState:
         self.food_card: Card | None = None
         self.plant_per_round: int = 0
         self.watering_hole_plant: int = 0
+        self.watering_hole_bamboo: int = 0
         # Modules
         self.module_decks: dict[str, ModuleDeck] = {}
 
         for module in self.modules:
             if module == BAMBOO_GROVE:
                 self.module_decks[module] = ModuleDeck()
-                self.watering_hole_bamboo: int = 0
                 self.bamboo_per_round: int = 0
                 self.bamboo_grove_deck = self.module_decks[module].deck
                 self.bamboo_grove_discard = self.module_decks[module].discard
@@ -90,6 +90,10 @@ class GameState:
         # endgame
         self.game_over: bool = False
         self.winner: None = None
+
+    @property
+    def total_food(self) -> int:
+        return self.watering_hole_plant + self.watering_hole_bamboo
 
     def trait_discard_pile(self, card: Card) -> list[Card]:
         """Return the discard pile belonging to a trait card's deck."""

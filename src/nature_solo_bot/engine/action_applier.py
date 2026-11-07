@@ -55,7 +55,7 @@ class ActionApplier:
 
             for food_type in priorities:
                 food_count = getattr(species, food_type)
-                
+
                 if food_count > 0:
                     setattr(species, food_type, food_count - 1)
                     break
