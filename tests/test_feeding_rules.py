@@ -416,7 +416,7 @@ class FeedingRulesTest(unittest.TestCase):
                     forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
 
                 self.assertEqual(
-                    FeedingRules.plant_food_taken_in_one_forage(forager, 10),
+                    FeedingRules.food_taken_in_one_forage(forager, 10),
                     expected_food,
                 )
 
@@ -428,12 +428,12 @@ class FeedingRulesTest(unittest.TestCase):
         forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
 
         self.assertEqual(
-            FeedingRules.plant_food_taken_in_one_forage(forager, 10),
+            FeedingRules.food_taken_in_one_forage(forager, 10),
             2,
         )
         forager.plant_food = 0
         self.assertEqual(
-            FeedingRules.plant_food_taken_in_one_forage(forager, 3),
+            FeedingRules.food_taken_in_one_forage(forager, 3),
             3,
         )
 
@@ -580,7 +580,7 @@ class FeedingRulesTest(unittest.TestCase):
         forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
         forager.add_trait_card(TraitCard(SOCIAL), max_traits=3)
 
-        estimated_food = FeedingRules.plant_food_taken_in_one_forage(forager, 5)
+        estimated_food = FeedingRules.food_taken_in_one_forage(forager, 5)
         actual_food = FeedingRules.eat(
             forager,
             "plant_food",

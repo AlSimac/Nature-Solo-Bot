@@ -68,8 +68,10 @@ class GameState:
         # watering hole
         self.food_card: Card | None = None
         self.plant_per_round: int = 0
-        self.watering_hole_plant: int = 0
-        self.watering_hole_bamboo: int = 0
+        self.watering_hole_food: dict[str, int] = {
+            "plant_food": 0,
+            "bamboo_food": 0,
+        }
         # Modules
         self.module_decks: dict[str, ModuleDeck] = {}
 
@@ -92,20 +94,36 @@ class GameState:
         self.winner: None = None
 
     @property
-    def total_food(self) -> int:
-        return self.watering_hole_plant + self.watering_hole_bamboo
+    def total_watering_hole_food(self) -> int:
+        return sum(self.watering_hole_food.values())
+
+    @property
+    def watering_hole_plant(self) -> int:
+        return self.watering_hole_food["plant_food"]
+
+    @watering_hole_plant.setter
+    def watering_hole_plant(self, amount: int) -> None:
+        self.watering_hole_food["plant_food"] = amount
+
+    @property
+    def watering_hole_bamboo(self) -> int:
+        return self.watering_hole_food["bamboo_food"]
+
+    @watering_hole_bamboo.setter
+    def watering_hole_bamboo(self, amount: int) -> None:
+        self.watering_hole_food["bamboo_food"] = amount
 
     def trait_discard_pile(self, card: Card) -> list[Card]:
         """Return the discard pile belonging to a trait card's deck."""
         if card.deck == NATURE:
             if self.nature_discard is None:
                 raise RuntimeError("The Nature discard pile is not initialized.")
-            
+
             return self.nature_discard
 
         try:
             return self.module_decks[card.deck].discard
-        
+
         except KeyError as error:
             raise ValueError(
                 f"No discard pile is configured for trait deck {card.deck!r}."
