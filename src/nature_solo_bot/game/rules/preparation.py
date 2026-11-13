@@ -126,9 +126,11 @@ class PreparationRules:
 
         # BAMBOO_GROVE: If a species with Monophagous becomes hunter,
         # Monophagous is removed
-        for card in species.trait_cards:
-            if card.trait.effect_id == MONOPHAGOUS.effect_id:
-                species.remove_trait_card(card)
+        if species.is_hunter:
+            for card in species.trait_cards:
+                if card.trait.effect_id == MONOPHAGOUS.effect_id:
+                    species.remove_trait_card(card)
+                    player._return_trait_card(card, state.trait_discard_pile(card))
 
         return attached
 
