@@ -5,11 +5,10 @@ from typing import TypeVar
 
 from nature_solo_bot.game.model.card import Card
 from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.game.model.species import BAMBOO, Species
 from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
-from nature_solo_bot.game.rules.feeding import BAMBOO
 
 from ..game.model.player import Player
-from ..game.model.species import Species
 from ..game.model.state import GameState
 
 T = TypeVar("T")
@@ -38,16 +37,14 @@ class ActionApplier:
 
         # Bamboo Grove needs to be separated from the others
         if BAMBOO_GROVE in state.modules:
-            bamboo_cards: list[Card] = (card for card in player.hand if card.deck == BAMBOO_GROVE)
-            other_cards: list[Card] = (card for card in player.hand if card not in bamboo_cards)
+            bamboo_cards = [card for card in player.hand if card.deck == BAMBOO_GROVE]
+            other_cards = [card for card in player.hand if card.deck != BAMBOO_GROVE]
             rng.shuffle(bamboo_cards)
             rng.shuffle(other_cards)
-
-            if food_type == BAMBOO:
-                discarded_card: Card = bamboo_cards.pop()
-
-            else:
-                discarded_card: Card = other_cards.pop()
+            preferred_cards = bamboo_cards if food_type == BAMBOO else other_cards
+            fallback_cards = other_cards if food_type == BAMBOO else bamboo_cards
+            discarded_card = (preferred_cards or fallback_cards).pop()
+            player.hand.remove(discarded_card)
 
         else:
             discarded_card: Card = player.hand.pop()

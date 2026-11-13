@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from src.nature_solo_bot.engine.action_applier import ActionApplier
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
@@ -26,6 +27,28 @@ from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class FeedingRulesTest(unittest.TestCase):
+    def test_bamboo_grove_discards_preferred_card_or_falls_back_to_other_deck(self):
+        nature_card = SimpleNamespace(deck="nature", food_value=2)
+        bamboo_card = SimpleNamespace(deck=BAMBOO_GROVE, food_value=3)
+
+        for food_type, hand, expected_card in (
+            ("bamboo_food", [nature_card, bamboo_card], bamboo_card),
+            ("plant_food", [nature_card, bamboo_card], nature_card),
+            ("bamboo_food", [nature_card], nature_card),
+            ("plant_food", [bamboo_card], bamboo_card),
+        ):
+            with self.subTest(food_type=food_type, hand=hand):
+                state = GameState(modules=[BAMBOO_GROVE])
+                player = Player(name="Food priority test")
+                player.hand = list(hand)
+
+                ActionApplier.discard_card_for_watering_hole(
+                    state, player, Random(1), food_type
+                )
+
+                self.assertIn(expected_card, state.trait_discard_pile(expected_card))
+                self.assertNotIn(expected_card, player.hand)
+
     def test_population_loss_discards_one_food_by_trait_priority(self):
         for is_monophagous, expected_food_type in (
             (True, "plant_food"),
