@@ -1,10 +1,14 @@
 """Card model stub."""
 
-from copy import deepcopy
+from __future__ import annotations
 
-from nature_solo_bot.game.model.state import GameState
+from copy import deepcopy
+from typing import TYPE_CHECKING
 
 from . import trait
+
+if TYPE_CHECKING:
+    from nature_solo_bot.game.model.state import GameState
 from .modules import MODULE_DEFINITIONS
 from .nature_symbols import NATURE_SYMBOL_BY_TRAIT_AND_FOOD
 from .solo_cards import NATURE_SOLO_CARDS
@@ -14,11 +18,13 @@ from .trait_card import TraitCard
 from .trait_cards import AVID_FORAGER, NATURE_TRAITS
 
 NATURE = "nature"
-NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
+
 
 class Card(TraitCard):
     """Represents a card in the game."""
-   
+
+    NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
+
     def __init__(
         self,
         name: str,

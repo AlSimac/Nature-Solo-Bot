@@ -1,9 +1,15 @@
 from enum import Enum
 
+from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+
 from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_card import TraitCard
-from .trait_cards import AVID_FORAGER, HUNTER
+from .trait_cards import AVID_FORAGER, HUNTER, MONOPHAGOUS
+
+PLANT = "plant_food"
+MEAT = "meat_food"
+BAMBOO = "bamboo_food"
 
 
 class TreeColor(Enum):
@@ -23,12 +29,38 @@ class Species:
         self.round_created: int = round_created
         self.population: int = 1
         self.size: int = 1
-        self.plant_food: int = 0
-        self.meat_food: int = 0
-        self.bamboo_food: int = 0
+        self.eaten_food: dict[str, int] = {
+            PLANT: 0,
+            MEAT: 0,
+            BAMBOO: 0,
+        }
         self.tree_color = TreeColor.PINK
         self.solo_symbols = solo_card.pink_symbols
         self.lost_population: int = 0
+
+    @property
+    def plant_food(self) -> int:
+        return self.eaten_food[PLANT]
+
+    @plant_food.setter
+    def plant_food(self, value: int) -> None:
+        self.eaten_food[PLANT] = value
+
+    @property
+    def meat_food(self) -> int:
+        return self.eaten_food[MEAT]
+
+    @meat_food.setter
+    def meat_food(self, value: int) -> None:
+        self.eaten_food[MEAT] = value
+
+    @property
+    def bamboo_food(self) -> int:
+        return self.eaten_food[BAMBOO]
+
+    @bamboo_food.setter
+    def bamboo_food(self, value: int) -> None:
+        self.eaten_food[BAMBOO] = value
 
     @property
     def attack_value(self) -> int:
@@ -44,7 +76,7 @@ class Species:
 
     @property
     def total_food(self) -> int:
-        return self.plant_food + self.meat_food
+        return sum(self.eaten_food.values())
 
     @property
     def is_hungry(self) -> bool:
@@ -84,6 +116,10 @@ class Species:
 
         # Species size >2 cannot take Avid Forager
         if card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2:
+            take_trait = False
+
+        # BAMBOO_GROVE: Hunters cannot take Monophagous
+        if card.trait.effect_id == MONOPHAGOUS.effect_id and self.is_hunter:
             take_trait = False
 
         return take_trait

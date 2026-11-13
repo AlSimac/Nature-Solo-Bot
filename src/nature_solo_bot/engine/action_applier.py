@@ -3,8 +3,10 @@
 from random import Random
 from typing import TypeVar
 
+from nature_solo_bot.game.model.card import Card
 from nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
+from nature_solo_bot.game.rules.feeding import BAMBOO
 
 from ..game.model.player import Player
 from ..game.model.species import Species
@@ -25,6 +27,7 @@ class ActionApplier:
         state: GameState,
         player: Player,
         rng: Random,
+        food_type: str,
     ):
         """Discard a card to add food to the watering hole.
 
@@ -32,8 +35,24 @@ class ActionApplier:
         front of the list while the draw deck keeps its top at the back of the list.
         """
         rng.shuffle(player.hand)
-        discarded_card = player.hand.pop()
-        discard_pile = state.trait_discard_pile(discarded_card)
+
+        # Bamboo Grove needs to be separated from the others
+        if BAMBOO_GROVE in state.modules:
+            bamboo_cards: list[Card] = (card for card in player.hand if card.deck == BAMBOO_GROVE)
+            other_cards: list[Card] = (card for card in player.hand if card not in bamboo_cards)
+            rng.shuffle(bamboo_cards)
+            rng.shuffle(other_cards)
+
+            if food_type == BAMBOO:
+                discarded_card: Card = bamboo_cards.pop()
+
+            else:
+                discarded_card: Card = other_cards.pop()
+
+        else:
+            discarded_card: Card = player.hand.pop()
+
+        discard_pile: list[Card] = state.trait_discard_pile(discarded_card)
         discard_pile.insert(0, discarded_card)
 
         if discarded_card.deck == BAMBOO_GROVE:

@@ -104,3 +104,18 @@ If the trait is discarded at any point, or the species goes extinct, all bamboo 
 [a] Maybe this might be confusing for players also playing with Flight (Seed Dispersal) or Decomposer?
 
 [b] "most common way" ?
+
+## Solo
+
+### Adapting Phase
+
+- If the Monophagous trait would be added to a species that cannot forage, skip this species; if a Monophagous species can no longer Forage, discard its Monophagous trait.
+
+### Feeding Phase
+
+- When feeding a species that cannot score Bamboo, Rani will discard a non-bamboo card for food in preference to a bamboo card; when feeding a species that can score Bamboo, Rani will discard a bamboo card for food in preference to a non-bamboo card.
+- Rani will discard cards to create plant food for a species that cannot score bamboo in preference to eating bamboo.
+- Rani will only forage for Bamboo if she can feed more population by doing so (be sure to consider all traits!)
+- A species with Monophagous will prioritise eating Bamboo over any other type of food.
+- Root-eating: Rani will eat rather than discard if one of this species' population can be fed, otherwise Rani will discard; Rani will discard Plants before Bamboo.
+- Stalking: Rani will ignore ALL evasive traits when hunting a fully fed species. This is her advantage.

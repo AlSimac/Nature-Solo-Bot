@@ -140,7 +140,7 @@ class FeedingRules:
             if state.watering_hole_food[food_type] >= forage_amount:
                 break
 
-            ActionApplier.discard_card_for_watering_hole(state, player, rng)
+            ActionApplier.discard_card_for_watering_hole(state, player, rng, food_type)
 
         can_forage = state.watering_hole_food[food_type] > 0
 

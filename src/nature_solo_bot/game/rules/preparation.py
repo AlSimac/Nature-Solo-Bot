@@ -1,5 +1,8 @@
 from random import Random
 
+from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
+
 from ...engine.action_applier import ActionApplier
 from ..model.card import Card
 from ..model.hunter_card import HunterCard
@@ -97,10 +100,11 @@ class PreparationRules:
         rng: Random,
         replace_random_trait: bool = False,
     ) -> bool:
+        attached = True
         is_full = len(species.trait_cards) >= max_traits
 
         if is_full and not species.trait_cards:
-            return False
+            attached = False
 
         hunter_card = HunterCard()
 
@@ -118,7 +122,13 @@ class PreparationRules:
             )
 
         else:
-            return False
+            attached = False
+
+        # BAMBOO_GROVE: If a species with Monophagous becomes hunter,
+        # Monophagous is removed
+        for card in species.trait_cards:
+            if card.trait.effect_id == MONOPHAGOUS.effect_id:
+                species.remove_trait_card(card)
 
         return attached
 
