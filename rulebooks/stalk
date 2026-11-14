@@ -1,0 +1,23 @@
+stalking_ignores_evasive_trait = (
+            any(trait.effect_id == STALKING.effect_id for trait in hunting_species.traits)
+            and possible_prey.total_food == possible_prey.population
+        )
+
+        prey_fast_count = sum(1 for trait in possible_prey.traits if trait.effect_id == FAST.effect_id)
+        hunter_fast_count = sum(1 for trait in hunting_species.traits if trait.effect_id == FAST.effect_id)
+        prey_arboreal_count = sum(
+            1 for trait in possible_prey.traits if trait.effect_id == ARBOREAL.effect_id
+        )
+        hunter_arboreal_count = sum(
+            1 for trait in hunting_species.traits if trait.effect_id == ARBOREAL.effect_id
+        )
+
+        blocking_evasive_traits = max(0, prey_fast_count - hunter_fast_count) + max(
+            0, prey_arboreal_count - hunter_arboreal_count
+        )
+
+        if stalking_ignores_evasive_trait and blocking_evasive_traits > 0:
+            blocking_evasive_traits -= 1
+
+        if blocking_evasive_traits > 0:
+            is_valid = False

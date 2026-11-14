@@ -9,9 +9,11 @@ from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
 from ..model.trait_cards import (
+    ARBOREAL,
     AVID_FORAGER,
     CLAWED,
     FAST,
+    FOLIVORE,
     HORNED,
     MONOPHAGOUS,
     OPPORTUNISTIC,
@@ -60,11 +62,23 @@ class FeedingRules:
                 ):
                     continue
 
+                FeedingRules._trigger_after_forage(
+                    active_player.species,
+                    species,
+                    state.watering_hole_food[PLANT],
+                )
+
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
                     if not FeedingRules._forage_with_refill(
                         state, active_player, species, food_type, rng
                     ):
                         break
+
+                    FeedingRules._trigger_after_forage(
+                        active_player.species,
+                        species,
+                        state.watering_hole_food[PLANT],
+                    )
 
                 successful_feeding = True
                 break
@@ -80,18 +94,17 @@ class FeedingRules:
                     MEAT,
                 )
 
+                if state.watering_hole_food[PLANT] > 0:
+                    FeedingRules._trigger_trait_feeding(
+                        active_player.species,
+                        OPPORTUNISTIC.effect_id,
+                        2,
+                        MEAT,
+                    )
+
                 break
 
-        if successful_feeding:
-            if state.watering_hole_food[PLANT] > 0:
-                FeedingRules._trigger_trait_feeding(
-                    active_player.species,
-                    OPPORTUNISTIC.effect_id,
-                    2,
-                    MEAT,
-                )
-
-        else:
+        if not successful_feeding:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
 
@@ -227,7 +240,6 @@ class FeedingRules:
             remaining_cards = sum(card.deck != BAMBOO_GROVE for card in active_player.hand)
 
         simulated_available_food = available_food
-        successful_forage = False
 
         # Avid Forager gives the species an additional forage for each copy of the trait.
         for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
@@ -265,7 +277,6 @@ class FeedingRules:
                 simulated_plant_food -= food_eaten
 
             simulated_available_food = simulated_watering_hole_food + 3 * remaining_cards
-            successful_forage = True
 
             # Tusked triggers only when a forage empties the entire watering hole.
             if food_eaten > 0 and simulated_total_watering_hole_food == 0:
@@ -276,13 +287,10 @@ class FeedingRules:
                     MEAT,
                 )
 
-        # Opportunistic triggers only if plant food remains after all forages.
-        if successful_forage and simulated_plant_food > 0:
-            FeedingRules._trigger_trait_feeding(
+            FeedingRules._trigger_after_forage(
                 simulated_active_species,
-                OPPORTUNISTIC.effect_id,
-                2,
-                MEAT,
+                simulated_forager,
+                simulated_plant_food,
             )
 
         # Compare the total additional food Rani's species would gain from this forage.
@@ -408,6 +416,28 @@ class FeedingRules:
                 FeedingRules.eat(species, food_type, food_to_eat)
 
     @staticmethod
+    def _trigger_after_forage(
+        active_species: Iterable[Species],
+        forager: Species,
+        plant_food_remaining: int,
+    ) -> None:
+        species_list = list(active_species)
+        if plant_food_remaining > 0:
+            FeedingRules._trigger_trait_feeding(
+                species_list,
+                OPPORTUNISTIC.effect_id,
+                2,
+                MEAT,
+            )
+
+        FeedingRules._trigger_trait_feeding(
+            (species for species in species_list if species is not forager),
+            FOLIVORE.effect_id,
+            1,
+            PLANT,
+        )
+
+    @staticmethod
     def _food_amount_to_eat(
         species: Species,
         food_type: str,
@@ -416,6 +446,10 @@ class FeedingRules:
     ) -> int:
         social_count = sum(trait.effect_id == SOCIAL.effect_id for trait in species.traits)
         bonus = 2 * social_count
+
+        # BAMBOO_GROVE
+        arboreal_count = sum(trait.effect_id == ARBOREAL.effect_id for trait in species.traits)
+        bonus += arboreal_count
 
         if food_type == PLANT:
             clawed_count = sum(trait.effect_id == CLAWED.effect_id for trait in species.traits)
@@ -496,6 +530,12 @@ class FeedingRules:
         # Cannot hunt a species with more Fast traits than itself
         if sum(1 for trait in possible_prey.traits if trait.effect_id == FAST.effect_id) > sum(
             1 for trait in hunting_species.traits if trait.effect_id == FAST.effect_id
+        ):
+            is_valid = False
+
+        # BAMBOO_GROVE: Cannot hunt a species with Arboreal if hunter is not Arboreal
+        if any(trait.effect_id == ARBOREAL.effect_id for trait in possible_prey.traits) and not any(
+            trait.effect_id == ARBOREAL.effect_id for trait in hunting_species.traits
         ):
             is_valid = False
 

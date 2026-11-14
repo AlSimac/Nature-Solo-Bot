@@ -15,6 +15,7 @@ from src.nature_solo_bot.game.model.trait_cards import (
     AVID_FORAGER,
     CLAWED,
     FAST,
+    FOLIVORE,
     HORNED,
     MONOPHAGOUS,
     OPPORTUNISTIC,
@@ -297,6 +298,62 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(forager.plant_food, 1)
         self.assertEqual(state.watering_hole_plant, 2)
         self.assertEqual(opportunistic_species.meat_food, 2)
+
+    def test_opportunistic_triggers_after_each_avid_forager_forage(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 4
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 2)
+        self.assertEqual(opportunistic_species.meat_food, 4)
+        self.assertEqual(state.watering_hole_plant, 1)
+
+    def test_folivore_triggers_for_other_species_but_not_the_forager(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(FOLIVORE), max_traits=3)
+        folivore = Species(solo_card=SoloSpecies(), round_created=1)
+        folivore.population = 2
+        folivore.add_trait_card(TraitCard(FOLIVORE), max_traits=3)
+        player.species.extend([forager, folivore])
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 3
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(folivore.plant_food, 1)
+
+    def test_folivore_does_not_trigger_after_a_hunt(self):
+        hunter_player = Player(name="Hunter")
+        prey_player = Player(name="Prey")
+        hunter = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter.population = 3
+        hunter.add_trait_card(HunterCard(), max_traits=3)
+        hunter.add_trait_card(TraitCard(FOLIVORE), max_traits=3)
+        prey = Species(solo_card=SoloSpecies(), round_created=1)
+        prey.population = 2
+        hunter_player.species.append(hunter)
+        prey_player.species.append(prey)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [hunter_player, prey_player]
+
+        FeedingRules.take_feeding_turn(state, hunter_player, Random(1))
+
+        self.assertEqual(hunter.plant_food, 0)
+        self.assertEqual(hunter.meat_food, 1)
 
     def test_forager_priority_counts_food_from_all_active_player_species(self):
         player = Player(name="Foraging player")
@@ -625,6 +682,36 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(state.watering_hole_plant, 0)
         self.assertEqual(forager.plant_food, 1)
         self.assertEqual(tusked_species.meat_food, 1)
+
+    def test_avid_forager_can_trigger_tusked_again_after_refilling(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 2
+        forager.population = 7
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        forager.add_trait_card(TraitCard(CLAWED), max_traits=3)
+        tusked_species = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked_species.population = 3
+        tusked_species.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.extend([forager, tusked_species])
+        player.hand = [SimpleNamespace(deck="nature", food_value=3)]
+        state = GameState()
+        state.players = [player]
+        state.watering_hole_plant = 4
+
+        projected_food = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(projected_food, 9)
+        self.assertEqual(forager.plant_food, 7)
+        self.assertEqual(tusked_species.meat_food, 2)
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(player.hand, [])
 
     def test_tusked_copies_and_social_trigger_for_all_players(self):
         first_player = Player(name="First")
