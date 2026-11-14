@@ -125,8 +125,6 @@ class FeedingRules:
                 if bamboo_available > 0:
                     available_food = bamboo_available, BAMBOO
 
-                available_food = plant_available, PLANT
-
             # Non-Monophagous species will only forage for bamboo
             # if they can feed more population by doing so
             if bamboo_available > 0:
