@@ -119,3 +119,13 @@ If the trait is discarded at any point, or the species goes extinct, all bamboo 
 - A species with Monophagous will prioritise eating Bamboo over any other type of food.
 - Root-eating: Rani will eat rather than discard if one of this species' population can be fed, otherwise Rani will discard; Rani will discard Plants before Bamboo.
 - Stalking: Rani will ignore ALL evasive traits when hunting a fully fed species. This is her advantage.
+
+#### foraging choices
+
+if bamboo and plant available:
+    for each species:
+        if species is NOT Monophagous:
+            count potential total food eaten (by all species) if species forage for plant
+        count potential total food eaten (by all species) if species forage for bamboo
+
+    forage with the highest count. In case of tie for non-Monophagous, plant wins.

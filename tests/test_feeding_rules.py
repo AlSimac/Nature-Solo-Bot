@@ -49,6 +49,60 @@ class FeedingRulesTest(unittest.TestCase):
                 self.assertIn(expected_card, state.trait_discard_pile(expected_card))
                 self.assertNotIn(expected_card, player.hand)
 
+    def test_monophagous_forager_uses_plant_only_when_bamboo_is_unavailable(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 2
+        state.watering_hole_bamboo = 1
+
+        self.assertEqual(
+            FeedingRules.food_type_eating_priorities(state, player, forager),
+            (1, "bamboo_food"),
+        )
+
+        state.watering_hole_bamboo = 0
+        self.assertEqual(
+            FeedingRules.food_type_eating_priorities(state, player, forager),
+            (2, "plant_food"),
+        )
+
+    def test_non_monophagous_forager_chooses_bamboo_for_greater_projected_trait_gain(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species = Species(solo_card=SoloSpecies(), round_created=1)
+        opportunistic_species.population = 3
+        opportunistic_species.add_trait_card(TraitCard(OPPORTUNISTIC), max_traits=3)
+        player.species.extend([forager, opportunistic_species])
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 1
+        state.watering_hole_bamboo = 1
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.bamboo_food, 1)
+        self.assertEqual(forager.plant_food, 0)
+        self.assertEqual(opportunistic_species.meat_food, 2)
+        self.assertEqual(state.watering_hole_plant, 1)
+
+    def test_non_monophagous_forager_prefers_plant_when_projected_gains_tie(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 1
+        state.watering_hole_bamboo = 1
+
+        self.assertEqual(
+            FeedingRules.food_type_eating_priorities(state, player, forager),
+            (1, "plant_food"),
+        )
+
     def test_population_loss_discards_one_food_by_trait_priority(self):
         for is_monophagous, expected_food_type in (
             (True, "plant_food"),

@@ -99,26 +99,43 @@ class FeedingRules:
     def food_type_eating_priorities(
         state: GameState, active_player: Player, species: Species
     ) -> tuple[int, str]:
-        """Return the amount of food available for the species to eat, by food type priorities."""
-        priorities = [PLANT]
-        available_food = 0
-        food_type_to_eat = PLANT
+        """Choose the forage source using projected food gain and Bamboo Grove priorities."""
+        plant_available = FeedingRules.get_available_food(state, active_player, PLANT)
+        available_food = plant_available, PLANT
 
         if BAMBOO_GROVE in state.modules:
-            if MONOPHAGOUS in [trait.effect_id for trait in species.traits]:
-                priorities.insert(0, BAMBOO)
+            bamboo_available = FeedingRules.get_available_food(state, active_player, BAMBOO)
 
-            else:
-                priorities.append(BAMBOO)
+            # A species with Monophagous will only forage for plant
+            # if no bamboo is available
+            if MONOPHAGOUS.effect_id in [trait.effect_id for trait in species.traits]:
+                if bamboo_available > 0:
+                    available_food = bamboo_available, BAMBOO
 
-        for food_type in priorities:
-            available_food = FeedingRules.get_available_food(state, active_player, food_type)
+                available_food = plant_available, PLANT
 
-            if available_food > 0:
-                food_type_to_eat = food_type
-                break
+            # Non-Monophagous species will only forage for bamboo
+            # if they can feed more population by doing so
+            if bamboo_available > 0:
+                plant_gain = FeedingRules._projected_food_gain_from_forage(
+                    state,
+                    active_player,
+                    species,
+                    plant_available,
+                    PLANT,
+                )
+                bamboo_gain = FeedingRules._projected_food_gain_from_forage(
+                    state,
+                    active_player,
+                    species,
+                    bamboo_available,
+                    BAMBOO,
+                )
 
-        return available_food, food_type_to_eat
+                if bamboo_gain > plant_gain:
+                    available_food = bamboo_available, BAMBOO
+
+        return available_food
 
     @staticmethod
     def _forage_with_refill(
@@ -187,7 +204,14 @@ class FeedingRules:
     ) -> int:
         """Project all forages and triggers, valuing each discarded card at three food."""
         all_species = [species for player in state.players for species in player.species]
-        simulated_species = {id(species): copy(species) for species in all_species}
+        simulated_species = {}
+
+        for species in all_species:
+            simulated = copy(species)
+            # Food is mutated during the simulation, so it must not be shared with live state.
+            simulated.eaten_food = species.eaten_food.copy()
+            simulated_species[id(species)] = simulated
+
         simulated_forager = simulated_species[id(forager)]
         simulated_active_species = [
             simulated_species[id(species)] for species in active_player.species
@@ -205,6 +229,7 @@ class FeedingRules:
         simulated_available_food = available_food
         successful_forage = False
 
+        # Avid Forager gives the species an additional forage for each copy of the trait.
         for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
             while remaining_cards:
                 forage_amount = FeedingRules.food_taken_in_one_forage(
@@ -215,6 +240,7 @@ class FeedingRules:
                 if simulated_watering_hole_food >= forage_amount:
                     break
 
+                # Each discarded card adds three food to its matching watering-hole supply.
                 simulated_watering_hole_food += 3
                 simulated_total_watering_hole_food += 3
 
@@ -241,6 +267,7 @@ class FeedingRules:
             simulated_available_food = simulated_watering_hole_food + 3 * remaining_cards
             successful_forage = True
 
+            # Tusked triggers only when a forage empties the entire watering hole.
             if food_eaten > 0 and simulated_total_watering_hole_food == 0:
                 FeedingRules._trigger_trait_feeding(
                     simulated_species.values(),
@@ -249,6 +276,7 @@ class FeedingRules:
                     MEAT,
                 )
 
+        # Opportunistic triggers only if plant food remains after all forages.
         if successful_forage and simulated_plant_food > 0:
             FeedingRules._trigger_trait_feeding(
                 simulated_active_species,
@@ -257,6 +285,7 @@ class FeedingRules:
                 MEAT,
             )
 
+        # Compare the total additional food Rani's species would gain from this forage.
         return sum(
             simulated.total_food - original.total_food
             for original, simulated in zip(active_player.species, simulated_active_species)
