@@ -20,6 +20,7 @@ from src.nature_solo_bot.game.model.trait_cards import (
     MONOPHAGOUS,
     OPPORTUNISTIC,
     PLATED,
+    ROOT_EATING,
     SCAVENGING,
     SOCIAL,
     TUSKED,
@@ -429,6 +430,29 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(forager.total_food, 0)
         self.assertEqual(tusked_species.total_food, 0)
         self.assertEqual(opportunistic_species.total_food, 0)
+
+    def test_forager_projection_includes_root_eating_for_each_avid_forage(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.size = 2
+        forager.population = 10
+        for trait in (AVID_FORAGER, MONOPHAGOUS, ROOT_EATING):
+            forager.add_trait_card(TraitCard(trait), max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 20
+
+        projected_food = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+
+        self.assertEqual(projected_food, 6)
+        self.assertEqual(state.watering_hole_plant, 20)
+        self.assertEqual(forager.total_food, 0)
 
     def test_each_opportunistic_copy_triggers_independently(self):
         player = Player(name="Foraging player")

@@ -17,6 +17,7 @@ from ..model.trait_cards import (
     HORNED,
     MONOPHAGOUS,
     OPPORTUNISTIC,
+    ROOT_EATING,
     SCAVENGING,
     SOCIAL,
     TUSKED,
@@ -68,6 +69,9 @@ class FeedingRules:
                     state.watering_hole_food[PLANT],
                 )
 
+                # BAMBOO_GROVE
+                FeedingRules.triggering_root_eating(state, species)
+
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
                     if not FeedingRules._forage_with_refill(
                         state, active_player, species, food_type, rng
@@ -79,6 +83,9 @@ class FeedingRules:
                         species,
                         state.watering_hole_food[PLANT],
                     )
+
+                    # BAMBOO_GROVE
+                    FeedingRules.triggering_root_eating(state, species)
 
                 successful_feeding = True
                 break
@@ -107,6 +114,41 @@ class FeedingRules:
         if not successful_feeding:
             starving_species = FeedingRules.choose_species_to_starve(active_player)[0]
             FeedingRules.starve(state, starving_species, active_player)
+
+    # BAMBOO_GROVE
+    @staticmethod
+    def triggering_root_eating(state, species):
+        FeedingRules._apply_root_eating(species, state.watering_hole_food)
+
+    # BAMBOO_GROVE
+    @staticmethod
+    def _apply_root_eating(species: Species, watering_hole_food: dict[str, int]) -> None:
+        for _ in range(species.trait_count(ROOT_EATING.effect_id)):
+            # Activates only if there are any plant or bamboo left in the WH
+            if not any(watering_hole_food[food] > 0 for food in (PLANT, BAMBOO)):
+                break
+
+            # Discard food only if the species is not hungry
+            if not species.is_hungry:
+                food_type = PLANT if watering_hole_food[PLANT] > 0 else BAMBOO
+                watering_hole_food[food_type] -= 1
+                continue
+
+            # if there's only one food type in the WH, take it
+            if watering_hole_food[PLANT] == 0:
+                food_type = BAMBOO
+
+            elif watering_hole_food[BAMBOO] == 0:
+                food_type = PLANT
+
+            # otherwise, prefer plant food unless Monophagous
+            else:
+                food_type = BAMBOO if MONOPHAGOUS in species.traits else PLANT
+
+            eaten = FeedingRules.eat(
+                species, food_type, 1, watering_hole_food[food_type]
+            )
+            watering_hole_food[food_type] -= eaten
 
     @staticmethod
     def food_type_eating_priorities(
@@ -227,9 +269,7 @@ class FeedingRules:
         simulated_active_species = [
             simulated_species[id(species)] for species in active_player.species
         ]
-        simulated_watering_hole_food = state.watering_hole_food[food_type]
-        simulated_plant_food = state.watering_hole_food[PLANT]
-        simulated_total_watering_hole_food = state.total_watering_hole_food
+        simulated_watering_hole_food = state.watering_hole_food.copy()
 
         if food_type == BAMBOO:
             remaining_cards = sum(card.deck == BAMBOO_GROVE for card in active_player.hand)
@@ -247,37 +287,29 @@ class FeedingRules:
                     simulated_available_food,
                     food_type,
                 )
-                if simulated_watering_hole_food >= forage_amount:
+                if simulated_watering_hole_food[food_type] >= forage_amount:
                     break
 
                 # Each discarded card adds three food to its matching watering-hole supply.
-                simulated_watering_hole_food += 3
-                simulated_total_watering_hole_food += 3
-
-                if food_type == PLANT:
-                    simulated_plant_food += 3
+                simulated_watering_hole_food[food_type] += 3
 
                 remaining_cards -= 1
 
-            if simulated_watering_hole_food <= 0:
+            if simulated_watering_hole_food[food_type] <= 0:
                 break
 
             food_eaten = FeedingRules.eat(
                 simulated_forager,
                 food_type,
                 simulated_forager.forage_value,
-                available_from_source=simulated_watering_hole_food,
+                available_from_source=simulated_watering_hole_food[food_type],
             )
-            simulated_watering_hole_food -= food_eaten
-            simulated_total_watering_hole_food -= food_eaten
+            simulated_watering_hole_food[food_type] -= food_eaten
 
-            if food_type == PLANT:
-                simulated_plant_food -= food_eaten
-
-            simulated_available_food = simulated_watering_hole_food + 3 * remaining_cards
+            simulated_available_food = simulated_watering_hole_food[food_type] + 3 * remaining_cards
 
             # Tusked triggers only when a forage empties the entire watering hole.
-            if food_eaten > 0 and simulated_total_watering_hole_food == 0:
+            if food_eaten > 0 and sum(simulated_watering_hole_food.values()) == 0:
                 FeedingRules._trigger_trait_feeding(
                     simulated_species.values(),
                     TUSKED.effect_id,
@@ -288,8 +320,10 @@ class FeedingRules:
             FeedingRules._trigger_after_forage(
                 simulated_active_species,
                 simulated_forager,
-                simulated_plant_food,
+                simulated_watering_hole_food[PLANT],
             )
+            FeedingRules._apply_root_eating(simulated_forager, simulated_watering_hole_food)
+            simulated_available_food = simulated_watering_hole_food[food_type] + 3 * remaining_cards
 
         # Compare the total additional food Rani's species would gain from this forage.
         return sum(
@@ -419,7 +453,9 @@ class FeedingRules:
         forager: Species,
         plant_food_remaining: int,
     ) -> None:
+        """Method to handle the trait triggers happening after foraging."""
         species_list = list(active_species)
+
         if plant_food_remaining > 0:
             FeedingRules._trigger_trait_feeding(
                 species_list,
@@ -428,6 +464,7 @@ class FeedingRules:
                 MEAT,
             )
 
+        # BAMBOO_GROVE
         FeedingRules._trigger_trait_feeding(
             (species for species in species_list if species is not forager),
             FOLIVORE.effect_id,
