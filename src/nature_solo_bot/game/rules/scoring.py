@@ -27,12 +27,12 @@ class ScoringRules:
             for species in active_player.species:
                 # In the case of Bamboo Grove, discard the unscorable food
                 if BAMBOO_GROVE in state.modules:
-                    if MONOPHAGOUS in species.traits:
+                    if species.count_trait_instance(MONOPHAGOUS) > 0:
                         species.eaten_food = {
                             food_type: value if food_type == BAMBOO else 0
                             for food_type, value in species.eaten_food.items()
                         }
-                        
+
                     else:
                         species.eaten_food = {
                             food_type: value if food_type != BAMBOO else 0

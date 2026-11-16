@@ -67,7 +67,7 @@ class ActionApplier:
         """Kill one population of a species"""
         # If the species is fully-fed, the killed population was carrying 1 food
         if species.total_food == species.population:
-            priorities = FOOD_DISCARD_PRIORITIES[MONOPHAGOUS in species.traits]
+            priorities = FOOD_DISCARD_PRIORITIES[species.count_trait_instance(MONOPHAGOUS) > 0]
 
             for food_type in priorities:
                 food_count = getattr(species, food_type)

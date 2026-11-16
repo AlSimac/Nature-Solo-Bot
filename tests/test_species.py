@@ -16,9 +16,7 @@ class SpeciesTest(unittest.TestCase):
 
         larger_species = Species(solo_card=SoloSpecies(), round_created=1)
         larger_species.size = 3
-        self.assertFalse(
-            larger_species.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
-        )
+        self.assertFalse(larger_species.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3))
         self.assertEqual(larger_species.trait_cards, [])
 
     def test_avid_forager_cannot_be_added_by_replacing_trait_on_larger_species(self):
@@ -86,6 +84,14 @@ class SpeciesTest(unittest.TestCase):
         )
         self.assertEqual(species.attack_value, 3)
         self.assertEqual(species.defense_value, 7)
+
+    def test_has_trait_counts_matches_by_effect_id(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        species.add_trait_card(TraitCard(CLAWED), max_traits=3)
+        species.add_trait_card(TraitCard(CLAWED), max_traits=3)
+
+        self.assertEqual(species.count_trait_instance(CLAWED), 2)
+        self.assertEqual(species.count_trait_instance(AVID_FORAGER), 0)
 
     def test_total_food_is_sum_of_plant_and_meat_food(self):
         species = Species(solo_card=SoloSpecies(), round_created=1)

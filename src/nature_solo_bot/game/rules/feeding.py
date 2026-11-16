@@ -20,6 +20,7 @@ from ..model.trait_cards import (
     ROOT_EATING,
     SCAVENGING,
     SOCIAL,
+    STALKING,
     TUSKED,
 )
 
@@ -143,11 +144,9 @@ class FeedingRules:
 
             # otherwise, prefer plant food unless Monophagous
             else:
-                food_type = BAMBOO if MONOPHAGOUS in species.traits else PLANT
+                food_type = BAMBOO if species.count_trait_instance(MONOPHAGOUS) > 0 else PLANT
 
-            eaten = FeedingRules.eat(
-                species, food_type, 1, watering_hole_food[food_type]
-            )
+            eaten = FeedingRules.eat(species, food_type, 1, watering_hole_food[food_type])
             watering_hole_food[food_type] -= eaten
 
     @staticmethod
@@ -163,7 +162,7 @@ class FeedingRules:
 
             # A species with Monophagous will only forage for plant
             # if no bamboo is available
-            if MONOPHAGOUS.effect_id in [trait.effect_id for trait in species.traits]:
+            if species.count_trait_instance(MONOPHAGOUS) > 0:
                 if bamboo_available > 0:
                     available_food = bamboo_available, BAMBOO
 
@@ -408,7 +407,7 @@ class FeedingRules:
     def hunter_loss_caused_by_prey(prey: Species, hunting_species: Species) -> int:
         """Return hunter populations lost to the prey's Horned traits."""
         return min(
-            sum(prey.size for trait in prey.traits if trait.effect_id == HORNED.effect_id),
+            prey.size * prey.count_trait_instance(HORNED),
             hunting_species.population,
         )
 
@@ -479,15 +478,15 @@ class FeedingRules:
         base_amount: int,
         available_from_source: int | None = None,
     ) -> int:
-        social_count = sum(trait.effect_id == SOCIAL.effect_id for trait in species.traits)
+        social_count = species.count_trait_instance(SOCIAL)
         bonus = 2 * social_count
 
         # BAMBOO_GROVE
-        arboreal_count = sum(trait.effect_id == ARBOREAL.effect_id for trait in species.traits)
+        arboreal_count = species.count_trait_instance(ARBOREAL)
         bonus += arboreal_count
 
         if food_type == PLANT:
-            clawed_count = sum(trait.effect_id == CLAWED.effect_id for trait in species.traits)
+            clawed_count = species.count_trait_instance(CLAWED)
             bonus += 2 * clawed_count
 
         limits = [
@@ -562,17 +561,22 @@ class FeedingRules:
         if possible_prey.defense_value > hunting_species.attack_value:
             is_valid = False
 
-        # Cannot hunt a species with more Fast traits than itself
-        if sum(1 for trait in possible_prey.traits if trait.effect_id == FAST.effect_id) > sum(
-            1 for trait in hunting_species.traits if trait.effect_id == FAST.effect_id
+        if any(trait.is_evasive for trait in possible_prey.traits) and (
+            hunting_species.count_trait_instance(STALKING) == 0  # BAMBOO_GROVE
+            or possible_prey.is_hungry
         ):
-            is_valid = False
+            # Cannot hunt a species with more Fast traits than itself
+            if possible_prey.count_trait_instance(FAST) > hunting_species.count_trait_instance(
+                FAST
+            ):
+                is_valid = False
 
-        # BAMBOO_GROVE: Cannot hunt a species with Arboreal if hunter is not Arboreal
-        if any(trait.effect_id == ARBOREAL.effect_id for trait in possible_prey.traits) and not any(
-            trait.effect_id == ARBOREAL.effect_id for trait in hunting_species.traits
-        ):
-            is_valid = False
+            # BAMBOO_GROVE: Cannot hunt a species with Arboreal if hunter is not Arboreal
+            if (
+                possible_prey.count_trait_instance(ARBOREAL) > 0
+                and hunting_species.count_trait_instance(ARBOREAL) == 0
+            ):
+                is_valid = False
 
         return is_valid
 

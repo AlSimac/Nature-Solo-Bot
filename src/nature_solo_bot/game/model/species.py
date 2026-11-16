@@ -5,7 +5,7 @@ from nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_card import TraitCard
-from .trait_cards import AVID_FORAGER, HUNTER, MONOPHAGOUS
+from .trait_cards import AVID_FORAGER, HUNTER, MONOPHAGOUS, STALKING
 
 PLANT = "plant_food"
 MEAT = "meat_food"
@@ -84,12 +84,16 @@ class Species:
 
     @property
     def is_hunter(self) -> bool:
-        return any(trait.effect_id == HUNTER.effect_id for trait in self.traits)
+        return any(trait.hidden_hunter for trait in self.traits)
 
     @property
     def traits(self) -> list[Trait]:
         """Return the trait definitions carried by this species' cards."""
         return [card.trait for card in self.trait_cards]
+
+    def count_trait_instance(self, trait: Trait) -> int:
+        """Return the number of traits with the same effect ID."""
+        return sum(existing_trait.effect_id == trait.effect_id for existing_trait in self.traits)
 
     def add_trait_card(self, card: TraitCard, *, max_traits: int) -> bool:
         """Give a trait to a species"""
@@ -108,7 +112,7 @@ class Species:
             (
                 # exception: The trait is a hidden hunter trait
                 # and the pecies has the Hunter trait
-                HUNTER.effect_id in [trait.effect_id for trait in self.traits]
+                self.count_trait_instance(HUNTER) > 0
                 and card.trait.hidden_hunter
             )
         ):

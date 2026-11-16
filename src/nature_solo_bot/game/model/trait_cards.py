@@ -4,6 +4,7 @@ from .trait import Trait
 HUNTER = Trait(
     name="Hunter",
     effect_id="hunter",
+    hidden_hunter=True,
 )
 # ----- Nature Traits -----
 CLAWED = Trait(

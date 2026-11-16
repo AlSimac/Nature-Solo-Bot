@@ -84,10 +84,7 @@ class AdaptationRules:
 
                 # If a species with Hunter is given a hidden hunter trait,
                 # remove the Hunter trait
-                if (
-                    HUNTER.effect_id in [trait.effect_id for trait in candidate.traits]
-                    and picked_card.trait.hidden_hunter
-                ):
+                if candidate.count_trait_instance(HUNTER) > 0 and picked_card.trait.hidden_hunter:
                     candidate.remove_trait_card(
                         next(
                             (
@@ -169,11 +166,7 @@ class AdaptationRules:
         if increase == SymbolIncrease.SIZE:
             species_max_size = min(
                 state.max_size,
-                (
-                    2
-                    if any(trait.effect_id == AVID_FORAGER.effect_id for trait in candidate.traits)
-                    else state.max_size
-                ),
+                (2 if candidate.count_trait_instance(AVID_FORAGER) > 0 else state.max_size),
             )
 
             if candidate.size >= species_max_size:
