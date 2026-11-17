@@ -3,7 +3,7 @@
 from random import Random
 
 from nature_solo_bot.game.model.modules import BAMBOO_GROVE
-from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
+from nature_solo_bot.game.model.trait_cards import LONG_DIGESTION, MONOPHAGOUS
 from nature_solo_bot.game.rules.feeding import BAMBOO
 
 from ..model.card import Card
@@ -34,6 +34,9 @@ class ScoringRules:
                         }
 
                     else:
+                        if species.count_trait_instance(LONG_DIGESTION):
+                            ScoringRules.store_food_on_long_digestion(species)
+
                         species.eaten_food = {
                             food_type: value if food_type != BAMBOO else 0
                             for food_type, value in species.eaten_food.items()
@@ -49,6 +52,14 @@ class ScoringRules:
                 if species.lost_population > 0:
                     ScoringRules._apply_population_loss_effects(state, species, rng)
                     species.lost_population = 0
+
+                # BAMBOO_GROVE
+                if state.current_round == state.total_rounds:
+                    active_player.score += sum(
+                        card.stored_food
+                        for card in species.trait_cards
+                        if card.trait.effect_id == LONG_DIGESTION.effect_id
+                    )
 
                 # Switch tree if the species lost population
                 if state.current_round == state.total_rounds - 1:
@@ -73,3 +84,10 @@ class ScoringRules:
 
             if isinstance(removed_trait, Card):
                 state.trait_discard_pile(removed_trait).insert(0, removed_trait)
+
+    @staticmethod
+    def store_food_on_long_digestion(species: Species) -> None:
+        for card in species.trait_cards:
+            if card.trait.effect_id == LONG_DIGESTION.effect_id:
+                card.stored_food += species.bamboo_food
+                break

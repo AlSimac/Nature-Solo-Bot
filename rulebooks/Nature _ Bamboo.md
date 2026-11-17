@@ -101,10 +101,6 @@ If the trait is discarded at any point, or the species goes extinct, all bamboo 
 - During Feeding Phase, a forager `[green]` species with Territorial may target their own Territorial trait card(s) to forage from instead of the watering hole, using the usual rules of foraging.
 - Any food not taken stays for next round (and another 2 food will be added per Territorial trait). Any food still present at the end of the game is discarded, not scored.
 
-[a] Maybe this might be confusing for players also playing with Flight (Seed Dispersal) or Decomposer?
-
-[b] "most common way" ?
-
 ## Solo
 
 ### Adapting Phase

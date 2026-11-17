@@ -32,9 +32,10 @@ class Card(TraitCard):
         trait: trait.Trait,
         solo_symbol: SymbolName,
         deck: str,
+        stored_food: int = 0,
     ):
         """Initialize a card with a name, food value, and trait."""
-        super().__init__(trait)
+        super().__init__(trait, stored_food)
         self.name: str = name
         self.food_value = food_value
         self.solo_symbol = solo_symbol
