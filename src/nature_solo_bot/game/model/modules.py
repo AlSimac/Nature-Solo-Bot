@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 
+from nature_solo_bot.const import BAMBOO_GROVE, BAMBOO_GROVE_FOOD_VALUES
 from nature_solo_bot.game.model.nature_symbols import BAMBOO_GROVE_SYMBOL_BY_TRAIT_AND_FOOD
 from nature_solo_bot.game.model.solo_cards import BAMBOO_GROVE_SOLO_CARDS
 from nature_solo_bot.game.model.solo_species import SoloSpecies
@@ -10,8 +11,6 @@ from .symbol import SymbolName
 from .trait import Trait
 from .trait_cards import BAMBOO_GROVE_TRAITS, LONG_DIGESTION, TERRITORIAL
 
-BAMBOO_GROVE = "bamboo_grove"
-BAMBOO_GROVE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
 
 @dataclass(frozen=True)
 class ModuleDefinition:

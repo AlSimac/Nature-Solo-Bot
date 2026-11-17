@@ -1,6 +1,6 @@
 from random import Random
 
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.const import BAMBOO_GROVE
 from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
 
 from ...engine.action_applier import ActionApplier
@@ -135,7 +135,6 @@ class PreparationRules:
         return attached
 
     @staticmethod
-    @staticmethod
     def add_new_species(state: GameState, rng: Random) -> None:
         """Add a new species to the player's list of species."""
         for player in state.players:
@@ -163,3 +162,11 @@ class PreparationRules:
                     rng=rng,
                     state=state,
                 )
+
+    # BAMBOO_GROVE
+    @staticmethod
+    def store_food_on_territorial(state: GameState):
+        for player in state.players:
+            for species in player.species:
+                for card in species.trait_cards:
+                    card.stored_food += 2

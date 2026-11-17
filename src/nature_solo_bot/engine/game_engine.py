@@ -3,7 +3,7 @@
 import random
 from typing import TypeVar
 
-from ..game.model.modules import BAMBOO_GROVE
+from ..const import BAMBOO_GROVE
 from ..game.model.player import Player
 from ..game.model.species import Species
 from ..game.model.state import (
@@ -106,6 +106,10 @@ class GameEngine:
 
         # Getting a new species for each player
         self.add_new_species()
+
+        # TODO: waiting for rule clarification in Solo
+        if BAMBOO_GROVE in self.modules:
+            PreparationRules.store_food_on_territorial(self)
 
         # Starting by first player, each player draws cards based on difficulty.
         for player_offset in range(self.state.number_players):

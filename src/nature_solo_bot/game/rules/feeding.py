@@ -2,8 +2,7 @@ from collections.abc import Iterable
 from copy import copy
 from random import Random
 
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
-
+from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE, MEAT, PLANT
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
@@ -23,10 +22,6 @@ from ..model.trait_cards import (
     STALKING,
     TUSKED,
 )
-
-PLANT = "plant_food"
-MEAT = "meat_food"
-BAMBOO = "bamboo_food"
 
 
 class FeedingRules:

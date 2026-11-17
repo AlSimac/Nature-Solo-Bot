@@ -2,9 +2,8 @@
 
 from random import Random
 
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE
 from nature_solo_bot.game.model.trait_cards import LONG_DIGESTION, MONOPHAGOUS
-from nature_solo_bot.game.rules.feeding import BAMBOO
 
 from ..model.card import Card
 from ..model.player import Player

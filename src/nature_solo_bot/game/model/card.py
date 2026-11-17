@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from nature_solo_bot.const import NATURE, NATURE_FOOD_VALUES
+
 from . import trait
 
 if TYPE_CHECKING:
@@ -17,13 +19,11 @@ from .symbol import SymbolName
 from .trait_card import TraitCard
 from .trait_cards import AVID_FORAGER, NATURE_TRAITS
 
-NATURE = "nature"
-
 
 class Card(TraitCard):
     """Represents a card in the game."""
 
-    NATURE_FOOD_VALUES = [1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4]
+    NATURE_FOOD_VALUES = NATURE_FOOD_VALUES
 
     def __init__(
         self,

@@ -3,9 +3,9 @@
 from dataclasses import dataclass, field
 from enum import Enum
 
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE, NATURE, PLANT
 
-from .card import NATURE, Card
+from .card import Card
 from .player import Player
 
 
@@ -69,8 +69,8 @@ class GameState:
         self.food_card: Card | None = None
         self.plant_per_round: int = 0
         self.watering_hole_food: dict[str, int] = {
-            "plant_food": 0,
-            "bamboo_food": 0,
+            PLANT: 0,
+            BAMBOO: 0,
         }
         # Modules
         self.module_decks: dict[str, ModuleDeck] = {}
@@ -99,19 +99,19 @@ class GameState:
 
     @property
     def watering_hole_plant(self) -> int:
-        return self.watering_hole_food["plant_food"]
+        return self.watering_hole_food[PLANT]
 
     @watering_hole_plant.setter
     def watering_hole_plant(self, amount: int) -> None:
-        self.watering_hole_food["plant_food"] = amount
+        self.watering_hole_food[PLANT] = amount
 
     @property
     def watering_hole_bamboo(self) -> int:
-        return self.watering_hole_food["bamboo_food"]
+        return self.watering_hole_food[BAMBOO]
 
     @watering_hole_bamboo.setter
     def watering_hole_bamboo(self, amount: int) -> None:
-        self.watering_hole_food["bamboo_food"] = amount
+        self.watering_hole_food[BAMBOO] = amount
 
     def trait_discard_pile(self, card: Card) -> list[Card]:
         """Return the discard pile belonging to a trait card's deck."""

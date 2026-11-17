@@ -3,20 +3,19 @@
 from random import Random
 from typing import TypeVar
 
+from nature_solo_bot.const import (
+    BAMBOO,
+    BAMBOO_GROVE,
+    FOOD_DISCARD_PRIORITIES,
+)
 from nature_solo_bot.game.model.card import Card
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
-from nature_solo_bot.game.model.species import BAMBOO, Species
+from nature_solo_bot.game.model.species import Species
 from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
 
 from ..game.model.player import Player
 from ..game.model.state import GameState
 
 T = TypeVar("T")
-
-FOOD_DISCARD_PRIORITIES = {
-    True: ("plant_food", "meat_food", "bamboo_food"),
-    False: ("bamboo_food", "plant_food", "meat_food"),
-}
 
 
 class ActionApplier:

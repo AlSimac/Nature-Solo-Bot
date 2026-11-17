@@ -1,15 +1,11 @@
 from enum import Enum
 
-from nature_solo_bot.game.model.modules import BAMBOO_GROVE
+from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE, MEAT, PLANT
 
 from .solo_species import SoloSpecies
 from .trait import Trait
 from .trait_card import TraitCard
 from .trait_cards import AVID_FORAGER, HUNTER, MONOPHAGOUS, STALKING
-
-PLANT = "plant_food"
-MEAT = "meat_food"
-BAMBOO = "bamboo_food"
 
 
 class TreeColor(Enum):
