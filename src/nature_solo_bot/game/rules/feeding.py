@@ -218,11 +218,7 @@ class FeedingRules:
         food_type: str,
         rng: Random,
     ) -> bool:
-        """Feed once from the watering hole or from Territorial when it is empty."""
-        if state.watering_hole_food[food_type] <= 0:
-            if FeedingRules._forage_from_territorial(species):
-                return True
-
+        """Feed once from the watering hole when possible, otherwise from Territorial."""
         if FeedingRules._forage_with_refill(
             state, player, species, food_type, rng
         ):
@@ -307,38 +303,33 @@ class FeedingRules:
         for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
             territorial_fed = False
             food_eaten = 0
-            if simulated_watering_hole_food[food_type] <= 0:
+
+            while remaining_cards:
+                forage_amount = FeedingRules.food_taken_in_one_forage(
+                    simulated_forager,
+                    simulated_available_food,
+                    food_type,
+                )
+                if simulated_watering_hole_food[food_type] >= forage_amount:
+                    break
+
+                # Each discarded card adds three food to its matching watering-hole supply.
+                simulated_watering_hole_food[food_type] += 3
+
+                remaining_cards -= 1
+
+            if simulated_watering_hole_food[food_type] > 0:
+                food_eaten = FeedingRules.eat(
+                    simulated_forager,
+                    food_type,
+                    simulated_forager.forage_value,
+                    available_from_source=simulated_watering_hole_food[food_type],
+                )
+                simulated_watering_hole_food[food_type] -= food_eaten
+            else:
                 territorial_fed = FeedingRules._projected_territorial_forage(
                     simulated_forager
                 )
-
-            if not territorial_fed:
-                while remaining_cards:
-                    forage_amount = FeedingRules.food_taken_in_one_forage(
-                        simulated_forager,
-                        simulated_available_food,
-                        food_type,
-                    )
-                    if simulated_watering_hole_food[food_type] >= forage_amount:
-                        break
-
-                    # Each discarded card adds three food to its matching watering-hole supply.
-                    simulated_watering_hole_food[food_type] += 3
-
-                    remaining_cards -= 1
-
-                if simulated_watering_hole_food[food_type] > 0:
-                    food_eaten = FeedingRules.eat(
-                        simulated_forager,
-                        food_type,
-                        simulated_forager.forage_value,
-                        available_from_source=simulated_watering_hole_food[food_type],
-                    )
-                    simulated_watering_hole_food[food_type] -= food_eaten
-                else:
-                    territorial_fed = FeedingRules._projected_territorial_forage(
-                        simulated_forager
-                    )
 
             if not territorial_fed and food_eaten <= 0:
                 break
