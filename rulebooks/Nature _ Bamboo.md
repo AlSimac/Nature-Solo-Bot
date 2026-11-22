@@ -98,7 +98,7 @@ If the trait is discarded at any point, or the species goes extinct, all bamboo 
 ### Territorial
 
 - During Preparation, each round, place 2 plants `[plant]` or 2 bamboo `[bamboo]` (player’s choice) from supply onto each Territorial trait a player has in play on their species.
-- During Feeding Phase, a forager `[green]` species with Territorial may target their own Territorial trait card(s) to forage from instead of the watering hole, using the usual rules of foraging.
+- During Feeding Phase, a forager species with Territorial may target their own Territorial trait card(s) to forage from instead of the watering hole, using the usual rules of foraging.
 - Any food not taken stays for next round (and another 2 food will be added per Territorial trait). Any food still present at the end of the game is discarded, not scored.
 
 ## Solo

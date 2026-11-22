@@ -20,6 +20,7 @@ from ..model.trait_cards import (
     SCAVENGING,
     SOCIAL,
     STALKING,
+    TERRITORIAL,
     TUSKED,
 )
 
@@ -41,23 +42,18 @@ class FeedingRules:
         successful_feeding = False
 
         for species in ordered_species:
-            available_food = 0
-
             if not species.is_hunter:
                 # foragers check each available food type in order of priority
-                available_food, food_type = FeedingRules.food_type_eating_priorities(
+                _, food_type = FeedingRules.food_type_eating_priorities(
                     state, active_player, species
                 )
 
-                # if the species can't forage, go to the next one
-                if available_food <= 0:
-                    continue
-
-                # if the watering hole has enough food, forage without discarding cards
                 if not FeedingRules._forage_with_refill(
                     state, active_player, species, food_type, rng
                 ):
-                    continue
+                    # BAMBOO_GROVE: Territorial cards are an alternative food source.
+                    if not FeedingRules._forage_from_territorial(species):
+                        continue
 
                 FeedingRules._trigger_after_forage(
                     active_player.species,
@@ -69,9 +65,12 @@ class FeedingRules:
                 FeedingRules.triggering_root_eating(state, species)
 
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
-                    if not FeedingRules._forage_with_refill(
+                    fed = FeedingRules._forage_with_refill(
                         state, active_player, species, food_type, rng
-                    ):
+                    )
+                    if not fed:
+                        fed = FeedingRules._forage_from_territorial(species)
+                    if not fed:
                         break
 
                     FeedingRules._trigger_after_forage(
@@ -366,6 +365,47 @@ class FeedingRules:
             available_from_source=state.watering_hole_food[food_type],
         )
         FeedingRules.remove_watering_hole_food(state, food_eaten, food_type)
+
+    @staticmethod
+    def _forage_from_territorial(
+        forager: Species,
+    ) -> bool:
+        """Eat stored food from the forager's Territorial cards once."""
+        territorial_cards = [
+            card
+            for card in forager.trait_cards
+            if card.trait.effect_id == TERRITORIAL.effect_id
+        ]
+
+        food_types = (
+            (BAMBOO, PLANT)
+            if forager.count_trait_instance(MONOPHAGOUS) > 0
+            else (PLANT, BAMBOO)
+        )
+        for food_type in food_types:
+            available = sum(card.stored_food[food_type] for card in territorial_cards)
+            if available <= 0:
+                continue
+
+            food_eaten = FeedingRules.eat(
+                forager,
+                food_type,
+                forager.forage_value,
+                available_from_source=available,
+            )
+
+            remaining = food_eaten
+            for card in territorial_cards:
+                stored = card.stored_food[food_type]
+                consumed = min(stored, remaining)
+                card.stored_food[food_type] -= consumed
+                remaining -= consumed
+                if remaining == 0:
+                    break
+
+            return food_eaten > 0
+
+        return False
 
     def hunt(state: GameState, player: Player, hunter: Species):
         """Hunt feeding action"""

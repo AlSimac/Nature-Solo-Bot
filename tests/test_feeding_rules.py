@@ -3,6 +3,7 @@ from random import Random
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from src.nature_solo_bot.const import PLANT
 from src.nature_solo_bot.engine.action_applier import ActionApplier
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
@@ -24,6 +25,7 @@ from src.nature_solo_bot.game.model.trait_cards import (
     SCAVENGING,
     SOCIAL,
     TUSKED,
+    TERRITORIAL,
 )
 from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
@@ -336,6 +338,28 @@ class FeedingRulesTest(unittest.TestCase):
 
         self.assertEqual(forager.plant_food, 1)
         self.assertEqual(folivore.plant_food, 1)
+
+    def test_territorial_stored_food_supports_avid_forager_bonus_feeding(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        territorial_card = TraitCard(TERRITORIAL)
+        territorial_card.stored_food[PLANT] = 2
+        forager.add_trait_card(territorial_card, max_traits=3)
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        folivore = Species(solo_card=SoloSpecies(), round_created=1)
+        folivore.population = 2
+        folivore.add_trait_card(TraitCard(FOLIVORE), max_traits=3)
+        player.species.extend([forager, folivore])
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 0
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 2)
+        self.assertEqual(territorial_card.stored_food[PLANT], 0)
+        self.assertEqual(folivore.plant_food, 2)
 
     def test_folivore_does_not_trigger_after_a_hunt(self):
         hunter_player = Player(name="Hunter")

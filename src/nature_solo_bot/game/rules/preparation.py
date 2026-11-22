@@ -1,7 +1,7 @@
 from random import Random
 
-from nature_solo_bot.const import BAMBOO_GROVE
-from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS
+from nature_solo_bot.const import BAMBOO_GROVE, PLANT
+from nature_solo_bot.game.model.trait_cards import MONOPHAGOUS, TERRITORIAL
 
 from ...engine.action_applier import ActionApplier
 from ..model.card import Card
@@ -165,8 +165,14 @@ class PreparationRules:
 
     # BAMBOO_GROVE
     @staticmethod
-    def store_food_on_territorial(state: GameState):
-        for player in state.players:
-            for species in player.species:
-                for card in species.trait_cards:
-                    card.stored_food += 2
+    def store_food_on_territorial(state: GameState) -> None:
+        territorial_cards = (
+            card
+            for player in state.players
+            for species in player.species
+            for card in species.trait_cards
+            if card.trait.effect_id == TERRITORIAL.effect_id
+        )
+
+        for card in territorial_cards:
+            card.stored_food[PLANT] += 2
