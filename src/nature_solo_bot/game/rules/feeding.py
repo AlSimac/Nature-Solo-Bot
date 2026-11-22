@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from copy import copy
 from random import Random
 
-from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE, MEAT, PLANT
+from nature_solo_bot.const import BAMBOO, BAMBOO_GROVE, MEAT, NATURE, PLANT
 from ...engine.action_applier import ActionApplier
 from ..model.player import Player
 from ..model.species import Species
@@ -48,12 +48,10 @@ class FeedingRules:
                     state, active_player, species
                 )
 
-                if not FeedingRules._forage_with_refill(
+                if not FeedingRules._forage_once(
                     state, active_player, species, food_type, rng
                 ):
-                    # BAMBOO_GROVE: Territorial cards are an alternative food source.
-                    if not FeedingRules._forage_from_territorial(species):
-                        continue
+                    continue
 
                 FeedingRules._trigger_after_forage(
                     active_player.species,
@@ -65,12 +63,9 @@ class FeedingRules:
                 FeedingRules.triggering_root_eating(state, species)
 
                 for _ in range(species.trait_count(AVID_FORAGER.effect_id)):
-                    fed = FeedingRules._forage_with_refill(
+                    if not FeedingRules._forage_once(
                         state, active_player, species, food_type, rng
-                    )
-                    if not fed:
-                        fed = FeedingRules._forage_from_territorial(species)
-                    if not fed:
+                    ):
                         break
 
                     FeedingRules._trigger_after_forage(
@@ -193,6 +188,9 @@ class FeedingRules:
     ) -> bool:
         """Forage once, discarding cards first when the watering hole needs food."""
         while player.hand:
+            for card in player.hand:
+                if not hasattr(card, "deck"):
+                    card.deck = NATURE
             available_food = FeedingRules.get_available_food(state, player, food_type)
             forage_amount = FeedingRules.food_taken_in_one_forage(
                 species,
@@ -205,10 +203,32 @@ class FeedingRules:
 
             ActionApplier.discard_card_for_watering_hole(state, player, rng, food_type)
 
-        can_forage = state.watering_hole_food[food_type] > 0
+        if state.watering_hole_food[food_type] <= 0:
+            return False
 
+        before_food = species.total_food
         FeedingRules.forage(state, species, food_type)
-        return can_forage
+        return species.total_food > before_food
+
+    @staticmethod
+    def _forage_once(
+        state: GameState,
+        player: Player,
+        species: Species,
+        food_type: str,
+        rng: Random,
+    ) -> bool:
+        """Feed once from the watering hole or from Territorial when it is empty."""
+        if state.watering_hole_food[food_type] <= 0:
+            if FeedingRules._forage_from_territorial(species):
+                return True
+
+        if FeedingRules._forage_with_refill(
+            state, player, species, food_type, rng
+        ):
+            return True
+
+        return FeedingRules._forage_from_territorial(species)
 
     @staticmethod
     def choose_species_to_feed(
@@ -256,6 +276,11 @@ class FeedingRules:
             simulated = copy(species)
             # Food is mutated during the simulation, so it must not be shared with live state.
             simulated.eaten_food = species.eaten_food.copy()
+            simulated.trait_cards = [copy(card) for card in species.trait_cards]
+            for simulated_card, original_card in zip(
+                simulated.trait_cards, species.trait_cards
+            ):
+                simulated_card.stored_food = original_card.stored_food.copy()
             simulated_species[id(species)] = simulated
 
         simulated_forager = simulated_species[id(forager)]
@@ -265,44 +290,67 @@ class FeedingRules:
         simulated_watering_hole_food = state.watering_hole_food.copy()
 
         if food_type == BAMBOO:
-            remaining_cards = sum(card.deck == BAMBOO_GROVE for card in active_player.hand)
+            remaining_cards = sum(
+                getattr(card, "deck", None) == BAMBOO_GROVE
+                for card in active_player.hand
+            )
 
         else:
-            remaining_cards = sum(card.deck != BAMBOO_GROVE for card in active_player.hand)
+            remaining_cards = sum(
+                getattr(card, "deck", None) != BAMBOO_GROVE
+                for card in active_player.hand
+            )
 
         simulated_available_food = available_food
 
         # Avid Forager gives the species an additional forage for each copy of the trait.
         for _ in range(1 + forager.trait_count(AVID_FORAGER.effect_id)):
-            while remaining_cards:
-                forage_amount = FeedingRules.food_taken_in_one_forage(
-                    simulated_forager,
-                    simulated_available_food,
-                    food_type,
-                )
-                if simulated_watering_hole_food[food_type] >= forage_amount:
-                    break
-
-                # Each discarded card adds three food to its matching watering-hole supply.
-                simulated_watering_hole_food[food_type] += 3
-
-                remaining_cards -= 1
-
+            territorial_fed = False
+            food_eaten = 0
             if simulated_watering_hole_food[food_type] <= 0:
-                break
+                territorial_fed = FeedingRules._projected_territorial_forage(
+                    simulated_forager
+                )
 
-            food_eaten = FeedingRules.eat(
-                simulated_forager,
-                food_type,
-                simulated_forager.forage_value,
-                available_from_source=simulated_watering_hole_food[food_type],
-            )
-            simulated_watering_hole_food[food_type] -= food_eaten
+            if not territorial_fed:
+                while remaining_cards:
+                    forage_amount = FeedingRules.food_taken_in_one_forage(
+                        simulated_forager,
+                        simulated_available_food,
+                        food_type,
+                    )
+                    if simulated_watering_hole_food[food_type] >= forage_amount:
+                        break
+
+                    # Each discarded card adds three food to its matching watering-hole supply.
+                    simulated_watering_hole_food[food_type] += 3
+
+                    remaining_cards -= 1
+
+                if simulated_watering_hole_food[food_type] > 0:
+                    food_eaten = FeedingRules.eat(
+                        simulated_forager,
+                        food_type,
+                        simulated_forager.forage_value,
+                        available_from_source=simulated_watering_hole_food[food_type],
+                    )
+                    simulated_watering_hole_food[food_type] -= food_eaten
+                else:
+                    territorial_fed = FeedingRules._projected_territorial_forage(
+                        simulated_forager
+                    )
+
+            if not territorial_fed and food_eaten <= 0:
+                break
 
             simulated_available_food = simulated_watering_hole_food[food_type] + 3 * remaining_cards
 
             # Tusked triggers only when a forage empties the entire watering hole.
-            if food_eaten > 0 and sum(simulated_watering_hole_food.values()) == 0:
+            if (
+                not territorial_fed
+                and food_eaten > 0
+                and sum(simulated_watering_hole_food.values()) == 0
+            ):
                 FeedingRules._trigger_trait_feeding(
                     simulated_species.values(),
                     TUSKED.effect_id,
@@ -318,6 +366,7 @@ class FeedingRules:
             FeedingRules._apply_root_eating(simulated_forager, simulated_watering_hole_food)
             simulated_available_food = simulated_watering_hole_food[food_type] + 3 * remaining_cards
 
+
         # Compare the total additional food Rani's species would gain from this forage.
         return sum(
             simulated.total_food - original.total_food
@@ -327,7 +376,10 @@ class FeedingRules:
     @staticmethod
     def get_available_food(state: GameState, active_player: Player, food_type: str = PLANT) -> int:
         """Calculate watering-hole food plus potential food from cards in hand."""
-        bamboo_grove_cards = sum(card.deck == BAMBOO_GROVE for card in active_player.hand)
+        bamboo_grove_cards = sum(
+            getattr(card, "deck", None) == BAMBOO_GROVE
+            for card in active_player.hand
+        )
         non_bg_cards = len(active_player.hand) - bamboo_grove_cards
 
         if food_type == BAMBOO:
@@ -378,7 +430,7 @@ class FeedingRules:
         ]
 
         food_types = (
-            (BAMBOO, PLANT)
+            (BAMBOO,)
             if forager.count_trait_instance(MONOPHAGOUS) > 0
             else (PLANT, BAMBOO)
         )
@@ -394,6 +446,44 @@ class FeedingRules:
                 available_from_source=available,
             )
 
+            remaining = food_eaten
+            for card in territorial_cards:
+                stored = card.stored_food[food_type]
+                consumed = min(stored, remaining)
+                card.stored_food[food_type] -= consumed
+                remaining -= consumed
+                if remaining == 0:
+                    break
+
+            return food_eaten > 0
+
+        return False
+
+    @staticmethod
+    def _projected_territorial_forage(forager: Species) -> bool:
+        """Simulate one Territorial forage on copied trait cards."""
+        territorial_cards = [
+            card
+            for card in forager.trait_cards
+            if card.trait.effect_id == TERRITORIAL.effect_id
+        ]
+
+        food_types = (
+            (BAMBOO,)
+            if forager.count_trait_instance(MONOPHAGOUS) > 0
+            else (PLANT, BAMBOO)
+        )
+        for food_type in food_types:
+            available = sum(card.stored_food[food_type] for card in territorial_cards)
+            if available <= 0:
+                continue
+
+            food_eaten = FeedingRules.eat(
+                forager,
+                food_type,
+                forager.forage_value,
+                available_from_source=available,
+            )
             remaining = food_eaten
             for card in territorial_cards:
                 stored = card.stored_food[food_type]
