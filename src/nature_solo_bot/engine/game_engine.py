@@ -109,7 +109,7 @@ class GameEngine:
 
         # TODO: waiting for rule clarification in Solo
         if BAMBOO_GROVE in self.modules:
-            PreparationRules.store_food_on_territorial(self)
+            PreparationRules.store_food_on_territorial(self.state)
 
         # Starting by first player, each player draws cards based on difficulty.
         for player_offset in range(self.state.number_players):

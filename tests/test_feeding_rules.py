@@ -339,6 +339,21 @@ class FeedingRulesTest(unittest.TestCase):
         self.assertEqual(forager.plant_food, 1)
         self.assertEqual(folivore.plant_food, 1)
 
+    def test_root_eating_triggers_after_a_forage(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 3
+        forager.add_trait_card(TraitCard(ROOT_EATING), max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 5
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 2)
+        self.assertEqual(state.watering_hole_plant, 3)
+
     def test_territorial_stored_food_supports_avid_forager_bonus_feeding(self):
         player = Player(name="Foraging player")
         forager = Species(solo_card=SoloSpecies(), round_created=1)
@@ -402,6 +417,97 @@ class FeedingRulesTest(unittest.TestCase):
 
         self.assertEqual(forager.plant_food, 1)
         self.assertEqual(territorial_card.stored_food[BAMBOO], 2)
+
+    def test_monophagous_avid_forager_rechecks_watering_hole_before_territorial(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        territorial_card = TraitCard(TERRITORIAL)
+        territorial_card.stored_food[BAMBOO] = 2
+        territorial_card.stored_food[PLANT] = 2
+        forager.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        forager.add_trait_card(territorial_card, max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_bamboo = 1
+        state.watering_hole_plant = 1
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.bamboo_food, 1)
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(state.watering_hole_bamboo, 0)
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(territorial_card.stored_food[BAMBOO], 2)
+        self.assertEqual(territorial_card.stored_food[PLANT], 2)
+
+    def test_monophagous_avid_projection_rechecks_watering_hole_food_type(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        forager.add_trait_card(TraitCard(TERRITORIAL), max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_bamboo = 1
+        state.watering_hole_plant = 1
+
+        projected_gain = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player, BAMBOO),
+            BAMBOO,
+        )
+
+        self.assertEqual(projected_gain, 2)
+
+    def test_monophagous_territorial_uses_stored_plant_when_bamboo_is_unavailable(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        territorial_card = TraitCard(TERRITORIAL)
+        territorial_card.stored_food[PLANT] = 2
+        forager.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+        forager.add_trait_card(territorial_card, max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+
+        projected_gain = FeedingRules._projected_food_gain_from_forage(
+            state,
+            player,
+            forager,
+            FeedingRules.get_available_food(state, player),
+        )
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(projected_gain, 1)
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(territorial_card.stored_food[PLANT], 1)
+
+    def test_monophagous_territorial_prefers_stored_bamboo_to_stored_plant(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        territorial_card = TraitCard(TERRITORIAL)
+        territorial_card.stored_food[PLANT] = 2
+        territorial_card.stored_food[BAMBOO] = 2
+        forager.add_trait_card(TraitCard(MONOPHAGOUS), max_traits=3)
+        forager.add_trait_card(territorial_card, max_traits=3)
+        player.species.append(forager)
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.bamboo_food, 1)
+        self.assertEqual(territorial_card.stored_food[BAMBOO], 1)
+        self.assertEqual(territorial_card.stored_food[PLANT], 2)
 
     def test_folivore_does_not_trigger_after_a_hunt(self):
         hunter_player = Player(name="Hunter")
