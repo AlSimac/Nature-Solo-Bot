@@ -47,6 +47,17 @@ class GameEngineTest(unittest.TestCase):
         self.assertTrue(
             all(card.deck == BAMBOO_GROVE for card in bamboo_decks.discard)
         )
+        bamboo_solo_species = {"Chi Chi", "Chomps", "Feng", "Trim"}
+        for player in state.players:
+            available_species = {
+                card.name for card in player.solo_deck
+            } | {
+                species.solo_species.name for species in player.species
+            }
+            self.assertEqual(
+                available_species & bamboo_solo_species,
+                bamboo_solo_species,
+            )
         bamboo_decks.deck.clear()
         bamboo_decks.discard.clear()
         with self.assertRaisesRegex(RuntimeError, "deck and discard pile are empty"):
