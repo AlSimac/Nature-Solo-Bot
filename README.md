@@ -25,8 +25,15 @@ $env:PYTHONPATH = "src"
 ```
 
 Select the game count and difficulty, then choose any modules and their Promo
-cards. Nature Promo cards can be enabled separately. The game logs are saved
-under `output\Nature`.
+cards. Nature Promo cards can be enabled separately. Use **Browse...** to
+choose the folder where game logs will be saved; the default is `output\Nature`.
+Each run creates a timestamped subfolder there, then saves game logs numbered
+in order under its `simulations` subfolder. The last chosen output folder is
+remembered for the next launch.
+
+Use the **Analysis** tab to select a timestamped run folder (or its
+`simulations` subfolder), choose which reports to generate, and save the CSV
+reports under that run's `analysis` subfolder.
 
 Run this command from the repository root to simulate 1,000 games with the
 medium difficulty and no Promo cards. It writes one detailed `.log` file per

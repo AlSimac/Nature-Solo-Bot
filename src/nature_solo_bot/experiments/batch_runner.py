@@ -1,6 +1,6 @@
 """Run reproducible batches of games and save a detailed log for each game."""
 
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from pathlib import Path
 from uuid import uuid4
 
@@ -49,8 +49,11 @@ class BatchRunner:
     def run(
         self,
         output_directory: str | Path = "output",
+        *,
+        progress_callback: Callable[[int, int], None] | None = None,
+        numbered_logs: bool = False,
     ) -> list[Path]:
-        """Run the configured games and save a uniquely named log per game."""
+        """Run games, save logs, and optionally report progress or number filenames."""
         directory = Path(output_directory)
         directory.mkdir(parents=True, exist_ok=True)
         difficulty_id = _DIFFICULTY_IDS.get(self.difficulty)
@@ -67,14 +70,15 @@ class BatchRunner:
                 promo_modules=self.promo_modules,
                 nature_promo=self.nature_promo,
             )
-            log_path = directory / (
-                f"gamelog_{difficulty_label}_difficulty_{uuid4().hex}.log"
-            )
+            filename_id = str(game_number) if numbered_logs else uuid4().hex
+            log_path = directory / f"gamelog_{difficulty_label}_difficulty_{filename_id}.log"
             GameLogger().run_game(
                 engine,
                 log_path,
                 game_number=game_number,
             )
             log_paths.append(log_path)
+            if progress_callback is not None:
+                progress_callback(game_number, self.game_count)
 
         return log_paths

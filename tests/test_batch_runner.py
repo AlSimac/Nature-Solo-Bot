@@ -24,11 +24,18 @@ class BatchRunnerTest(unittest.TestCase):
                 nature_promo=True,
             )
 
-            log_paths = runner.run(output_directory)
+            progress = []
+            log_paths = runner.run(
+                output_directory,
+                progress_callback=lambda completed, total: progress.append(
+                    (completed, total)
+                ),
+            )
             log_contents = [log_path.read_text(encoding="utf-8") for log_path in log_paths]
             self.assertTrue(all(path.is_file() for path in log_paths))
 
         self.assertEqual(len(log_paths), 3)
+        self.assertEqual(progress, [(1, 3), (2, 3), (3, 3)])
         self.assertEqual(len({path.name for path in log_paths}), 3)
         for index, (log_path, log_text) in enumerate(zip(log_paths, log_contents), start=1):
             self.assertRegex(
@@ -113,6 +120,24 @@ class BatchRunnerTest(unittest.TestCase):
     def test_constructor_rejects_nonpositive_game_count(self):
         with self.assertRaisesRegex(ValueError, "game_count"):
             BatchRunner(game_count=0)
+
+    def test_run_can_name_logs_with_incrementing_game_numbers(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            paths = BatchRunner(
+                game_count=2,
+                difficulty=Difficulty.EASY,
+            ).run(
+                temporary_directory,
+                numbered_logs=True,
+            )
+
+        self.assertEqual(
+            [path.name for path in paths],
+            [
+                "gamelog_1_difficulty_1.log",
+                "gamelog_1_difficulty_2.log",
+            ],
+        )
 
     def test_cli_runs_with_selected_options(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

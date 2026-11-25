@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TypeAlias
 
@@ -19,6 +20,13 @@ AnalysisCounts: TypeAlias = (
     | dict[tuple[str, ...], TraitCombinationStats]
     | dict[str, SoloSpeciesStats]
 )
+
+_ANALYSES = {
+    "trait_assignments": (None, "trait_assignment_counts.csv"),
+    "food_by_trait": ("food_by_trait", "trait_food_by_round.csv"),
+    "trait_combinations": ("trait_combinations", "trait_combinations.csv"),
+    "solo_species": ("solo_species", "solo_species_stats.csv"),
+}
 
 
 def _write_assignment_csv(writer, counts: dict[str, TraitAssignmentCounts]) -> None:
@@ -246,6 +254,35 @@ def _display_counts(options: argparse.Namespace, counts: AnalysisCounts) -> None
         _print_food_counts(counts)
     else:
         _print_assignment_counts(counts)
+
+
+def run_analysis(
+    log_directory: Path,
+    output_directory: Path,
+    analyses: Sequence[str],
+) -> list[Path]:
+    """Run selected reports and return the paths of their CSV files."""
+    if not analyses:
+        raise ValueError("Select at least one analysis.")
+
+    unknown_analyses = set(analyses).difference(_ANALYSES)
+    if unknown_analyses:
+        raise ValueError(f"Unknown analysis: {', '.join(sorted(unknown_analyses))}")
+
+    output_paths = []
+    for analysis in analyses:
+        flag, filename = _ANALYSES[analysis]
+        options = argparse.Namespace(
+            log_directory=log_directory,
+            output=output_directory / filename,
+            food_by_trait=flag == "food_by_trait",
+            trait_combinations=flag == "trait_combinations",
+            solo_species=flag == "solo_species",
+        )
+        counts = _parse_counts(options)
+        _save_counts(options, counts)
+        output_paths.append(options.output)
+    return output_paths
 
 
 def main() -> int:
