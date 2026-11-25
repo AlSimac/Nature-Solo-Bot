@@ -261,12 +261,22 @@ class GameSetupWindow:
         ttk.Label(container, textvariable=self.analysis_status, wraplength=380).grid(
             row=2, column=0, columnspan=3, sticky=tk.W, pady=(12, 8)
         )
+        self.analysis_progress = tk.IntVar(value=0)
+        self.analysis_progress_bar = ttk.Progressbar(
+            container,
+            variable=self.analysis_progress,
+            maximum=1,
+            mode="determinate",
+        )
+        self.analysis_progress_bar.grid(
+            row=3, column=0, columnspan=3, sticky=tk.EW, pady=(0, 8)
+        )
         self.run_analysis_button = ttk.Button(
             container,
             text="Run analysis",
             command=self._start_analysis,
         )
-        self.run_analysis_button.grid(row=3, column=0, columnspan=3, sticky=tk.EW)
+        self.run_analysis_button.grid(row=4, column=0, columnspan=3, sticky=tk.EW)
 
     def _choose_output_folder(self) -> None:
         """Let the user choose the exact folder where game logs will be saved."""
@@ -410,7 +420,9 @@ class GameSetupWindow:
 
         self.run_button.configure(state=tk.DISABLED)
         self.run_analysis_button.configure(state=tk.DISABLED)
-        self.analysis_status.set("Running analysis...")
+        self.analysis_progress.set(0)
+        self.analysis_progress_bar.configure(maximum=len(analyses))
+        self.analysis_status.set(f"Running analysis: 0 of {len(analyses)}")
         threading.Thread(
             target=self._run_analysis,
             args=(log_directory, analysis_directory, analyses),
@@ -425,7 +437,14 @@ class GameSetupWindow:
     ) -> None:
         """Run reports off the UI thread and queue completion or failure."""
         try:
-            output_paths = run_analysis(log_directory, analysis_directory, analyses)
+            output_paths = run_analysis(
+                log_directory,
+                analysis_directory,
+                analyses,
+                progress_callback=lambda completed, total: self._results.put(
+                    ("analysis_progress", completed, total)
+                ),
+            )
         except Exception as error:
             self._results.put(_OperationFailure("analysis", error))
             return
@@ -485,8 +504,14 @@ class GameSetupWindow:
                 elif result == "analysis_complete":
                     self.run_button.configure(state=tk.NORMAL)
                     self.run_analysis_button.configure(state=tk.NORMAL)
+                    self.analysis_progress.set(completed)
                     self.analysis_status.set(
                         f"Saved {completed} analysis reports to {detail}"
+                    )
+                elif result == "analysis_progress":
+                    self.analysis_progress.set(completed)
+                    self.analysis_status.set(
+                        f"Running analysis: {completed} of {detail}"
                     )
                 else:
                     self.run_button.configure(state=tk.NORMAL)

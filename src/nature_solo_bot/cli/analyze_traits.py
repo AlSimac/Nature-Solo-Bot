@@ -2,7 +2,7 @@
 
 import argparse
 import csv
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TypeAlias
 
@@ -260,6 +260,7 @@ def run_analysis(
     log_directory: Path,
     output_directory: Path,
     analyses: Sequence[str],
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> list[Path]:
     """Run selected reports and return the paths of their CSV files."""
     if not analyses:
@@ -270,7 +271,7 @@ def run_analysis(
         raise ValueError(f"Unknown analysis: {', '.join(sorted(unknown_analyses))}")
 
     output_paths = []
-    for analysis in analyses:
+    for completed, analysis in enumerate(analyses, start=1):
         flag, filename = _ANALYSES[analysis]
         options = argparse.Namespace(
             log_directory=log_directory,
@@ -282,6 +283,8 @@ def run_analysis(
         counts = _parse_counts(options)
         _save_counts(options, counts)
         output_paths.append(options.output)
+        if progress_callback is not None:
+            progress_callback(completed, len(analyses))
     return output_paths
 
 

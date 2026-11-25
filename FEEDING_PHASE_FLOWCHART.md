@@ -1,15 +1,10 @@
-# Feeding Phase Flow and Decisions
+# Feeding Phase Flowcharts
 
-This chart documents the plant-and-meat feeding behavior implemented by the solo engine, including the Promo Avid Forager trait. Bamboo Grove is configurable elsewhere in the engine, but `FeedingRules` does not yet resolve bamboo food or its module-specific feeding effects; those rules are outside this chart.
+The diagrams below document the solo engine's feeding behavior in two configurations: core Nature, and games that include Bamboo Grove. Each set has its own phase flow, candidate order, forage resolution, and hunt/prey selection.
 
-## Image files
+## Core Nature
 
-- [Phase and turn flow (PNG)](./docs/images/feeding-phase/phase-and-turn-flow.png) | [SVG](./docs/images/feeding-phase/phase-and-turn-flow.svg)
-- [Feeding candidate order (PNG)](./docs/images/feeding-phase/feeding-candidate-order.png) | [SVG](./docs/images/feeding-phase/feeding-candidate-order.svg)
-- [Forage and plant-food resolution (PNG)](./docs/images/feeding-phase/forage-and-plant-food.png) | [SVG](./docs/images/feeding-phase/forage-and-plant-food.svg)
-- [Hunt and prey selection (PNG)](./docs/images/feeding-phase/hunt-and-prey-selection.png) | [SVG](./docs/images/feeding-phase/hunt-and-prey-selection.svg)
-
-## Phase and turn flow
+### Phase and turn flow
 
 ```mermaid
 flowchart TD
@@ -25,32 +20,27 @@ flowchart TD
     H -- Yes --> J["Build feeding candidate order"]
     J --> K{"Any untried candidate species?"}
     K -- Yes --> L{"Is candidate a hunter?"}
-    L -- No --> M{"Available food estimate > 0?"}
+    L -- No --> M{"Available plant food estimate > 0?"}
     M -- No --> K
     M -- Yes --> N["Try one forage, refilling watering hole if needed"]
     N --> O{"Forage succeeded?"}
     O -- No --> K
-    O -- Yes --> P["Attempt one extra forage per Avid Forager copy"]
-    P --> Q["Apply end-of-turn Opportunistic trigger if watering hole still has plants"]
-    Q --> G
+    O -- Yes --> P["Resolve post-forage triggers and Avid Forager bonus forages"]
+    P --> G
     L -- Yes --> R["Try to hunt a valid prey"]
     R --> S{"Hunt succeeded?"}
     S -- No --> K
     S -- Yes --> T["Resolve prey death, Horned losses, then all Scavenging triggers"]
-    T --> U["Apply end-of-turn Opportunistic trigger if watering hole still has plants"]
+    T --> U["Resolve Opportunistic triggers if plants remain"]
     U --> G
     K -- No --> V["Starve the highest-priority hungry species by killing one population"]
     V --> G
-    G --> W{"End of player rotation"}
+    G --> W{"End of player rotation?"}
     W -- No --> E
     W -- Yes --> C
 ```
 
-The engine repeats complete player rotations while any species is hungry and at least one player has not passed. A player with no hungry species passes when their turn is reached. A player who still has hungry species but cannot complete a feeding action starves one population instead of passing.
-
-The candidate order is built once, before the turn's first discard. Refilling does not recalculate that order: the selected forager continues its forage attempt. The implementation can move to the next candidate if an attempt returns failure, but with the normal Nature deck's positive food values (1–4), a refill begun with cards produces at least one plant and that initial forage succeeds.
-
-## Feeding candidate order
+### Feeding candidate order
 
 ```mermaid
 flowchart TD
@@ -61,43 +51,36 @@ flowchart TD
     E --> F["Try candidates in order; take the first successful action"]
 ```
 
-Forager projections simulate the base forage and each Avid Forager bonus forage, refills, Tusked triggers, and the player's Opportunistic triggers. The estimate values each card in hand at three plants. During an actual refill, a random card is discarded and its printed food value is added to the watering hole. Hunters are considered only after all foragers, regardless of how much food a hunt might provide.
-
-## Forage and plant-food resolution
+### Forage and plant-food resolution
 
 ```mermaid
 flowchart TD
     A["Begin initial forage"] --> B["Estimate amount: size + 2 per Clawed + 2 per Social"]
-    B --> C["Cap estimate by hungry population and available food estimate"]
+    B --> C["Cap by hungry population and available plant-food estimate"]
     C --> D{"Watering hole has enough plants for estimate?"}
-    D -- No, hand has cards --> E["Discard a random card; add its printed food value"]
-    E -- "same forager; recalculate" --> B
+    D -- No, hand has cards --> E["Discard a random card; add its printed food value as plants"]
+    E --> B
     D -- Yes --> F{"Any plant remains in watering hole?"}
     D -- No, hand empty --> F
     F -- No --> G["Initial forage fails; try next candidate"]
-    F -- Yes --> H["Eat plants, capped by hunger and actual plants present"]
+    F -- Yes --> H["Eat plants, capped by hunger and plants present"]
     H --> I{"Did this remove the last plant?"}
     I -- Yes --> J["Every Tusked copy in the game triggers: eat 1 meat each"]
-    I -- No --> K["Continue"]
+    I -- No --> K{"Plants remain in watering hole?"}
     J --> K
-    K --> L{"More Avid Forager copies to attempt?"}
-    L -- No --> M{"Watering hole still has plants?"}
+    K -- Yes --> Q["Active player's Opportunistic copies trigger: eat 2 meat each"]
+    K -- No --> L{"More Avid Forager copies to attempt?"}
+    Q --> L
+    L -- No --> R["Finish feeding turn"]
     L -- Yes --> N["Attempt bonus forage using the same refill and eating rules"]
     N --> O{"Bonus forage succeeded?"}
-    O -- No --> M
+    O -- No --> R
     O -- Yes --> P{"Did this remove the last plant?"}
     P -- Yes --> J
-    P -- No --> L
-    M -- Yes --> Q["Every Opportunistic copy on active player's species triggers: eat 2 meat each"]
-    M -- No --> R["Finish feeding turn"]
-    Q --> R
+    P -- No --> K
 ```
 
-The `E --> B` loop recalculates the capped amount for the same already-selected forager; it does not choose another species. All eating effects are capped by the species' hungry population. Each Social copy adds two food from the same source as the triggering food; each Clawed copy adds two only when eating plants. If a refill leaves no plants after the hand is exhausted, that forage attempt fails. Avid Forager stops at its first failed bonus forage.
-
-Tusked triggers for every species belonging to either player, once per copy, whenever removing plants changes the watering hole from nonempty to empty. A refill can make it trigger again later in the same round.
-
-## Hunt and prey selection
+### Hunt and prey selection
 
 ```mermaid
 flowchart TD
@@ -116,17 +99,17 @@ flowchart TD
     K --> L["Kill one prey population"]
     L --> M["If prey had Horned, kill up to prey size per Horned copy from hunter"]
     M --> N["Every Scavenging copy on every species triggers: eat 2 meat each"]
-    N --> O{"Watering hole still has plants?"}
-    O -- Yes --> P["Every Opportunistic copy on active player's species triggers: eat 2 meat each"]
+    N --> O{"Plants remain in watering hole?"}
+    O -- Yes --> P["Active player's Opportunistic copies trigger: eat 2 meat each"]
     O -- No --> Q["Finish feeding turn"]
     P --> Q
 ```
 
-Attack and defense values start at species size. Clawed adds two attack and one defense per copy; Opportunistic adds one defense; Plated adds four defense; Tusked adds two defense. Each Horned copy causes hunter losses equal to prey size, capped by the hunter's current population. These losses are included in prey ranking and applied after the prey is killed.
+Foragers are ordered once at the start of the player's turn by projected total food gain, with original species order breaking ties; hunters follow in species order. Refilling does not rebuild that order or change the selected forager. Each successful forage resolves Opportunistic effects before the next Avid Forager attempt. Projections value each card in hand at three plants; an actual refill adds the discarded card's printed food value.
 
-When a population is killed, its owner is credited with the loss. If the species was fully fed just before the loss, one food is removed (plant food first, otherwise meat). Killing its last population removes the species, banks its size, and returns its trait cards according to the extinction rules.
+The forage amount is capped by hunger and available plants. Clawed adds two plants per copy and Social adds two food from the source per copy. Tusked triggers for every species belonging to either player, once per copy, when the last plant leaves the watering hole. Refilling can empty the watering hole again later in the round.
 
-## Starvation fallback
+Attack and defense start at species size. Clawed adds two attack and one defense per copy; Opportunistic adds one defense; Plated adds four defense; Tusked adds two defense. Each Horned copy causes hunter losses equal to prey size, capped by the hunter's current population. These losses are included in prey ranking and applied after the prey is killed.
 
 When no candidate can feed, one population is killed from the first available group:
 
@@ -134,4 +117,130 @@ When no candidate can feed, one population is killed from the first available gr
 2. Foragers with no food at all, lowest population first and then oldest first.
 3. Other hungry foragers, in species order.
 
-The same population-loss and extinction handling used for a hunt applies. Feeding ends once no species is hungry, or the engine's turn loop has no non-passing players left. The following scoring phase counts remaining food, clears it from species, and applies end-of-round population-loss effects.
+The same population-loss and extinction handling used for a hunt applies. Feeding ends once no species is hungry, or the engine's turn loop has no non-passing players left. Scoring then counts remaining food, clears it from species, and applies end-of-round population-loss effects.
+
+## Games with Bamboo Grove
+
+### Phase and turn flow
+
+```mermaid
+flowchart TD
+    A["Enter feeding phase"] --> B["Set current phase to FEEDING"]
+    B --> C{"Any hungry species and any player not passing?"}
+    C -- No --> Z["Leave feeding phase; proceed to scoring"]
+    C -- Yes --> D["Visit players in order, starting at first_player_index and wrapping"]
+    D --> E{"Has this player already passed?"}
+    E -- Yes --> G["Continue to next player"]
+    E -- No --> H{"Does this player have a hungry species?"}
+    H -- No --> I["Mark player as passing"]
+    I --> G
+    H -- Yes --> J["Build feeding candidate order"]
+    J --> K{"Any untried candidate species?"}
+    K -- Yes --> L{"Is candidate a hunter?"}
+    L -- No --> M{"Choose forage food: bamboo for Monophagous if available; otherwise best projected plant or bamboo gain"}
+    M --> N["Try watering-hole forage with refills; discarded cards add food matching their deck"]
+    N --> O{"Forage succeeded?"}
+    O -- No --> K
+    O -- Yes --> P["Resolve post-forage effects and Avid Forager bonus forages; stop on first failed bonus"]
+    P --> G
+    L -- Yes --> R["Try to hunt a valid prey, including Stalking hunters"]
+    R --> S{"Hunt succeeded?"}
+    S -- No --> K
+    S -- Yes --> T["Resolve prey death, Horned losses, then all Scavenging triggers"]
+    T --> U["Resolve Opportunistic triggers if plants remain"]
+    U --> G
+    K -- No --> V["Starve the highest-priority hungry species by killing one population"]
+    V --> G
+    G --> W{"End of player rotation?"}
+    W -- No --> E
+    W -- Yes --> C
+```
+
+### Feeding candidate order
+
+```mermaid
+flowchart TD
+    A["Collect this player's hungry species"] --> B["Separate foragers and hunters"]
+    B --> C["Choose each forager's food source and project total gain, including trait triggers"]
+    C --> D["Rank foragers by projected total food gain, highest first"]
+    D --> E["Keep original species order for ties"]
+    E --> F["Append hungry hunters in original species order"]
+    F --> G["Try candidates in order; take the first successful action"]
+```
+
+### Forage and plant-or-bamboo resolution
+
+```mermaid
+flowchart TD
+    A["Begin forage"] --> B{"Is the forager Monophagous?"}
+    B -- Yes --> C{"Bamboo available from watering hole or matching cards?"}
+    C -- Yes --> D["Choose bamboo"]
+    C -- No --> E["Choose plants"]
+    B -- No --> F["Project plant and bamboo gains; choose bamboo only if its gain is greater, otherwise plants"]
+    D --> G{"Foraging from watering hole?"}
+    E --> G
+    F --> G
+    G -- Yes --> H["Estimate amount using forage traits; cap by hunger and chosen food availability"]
+    H --> I{"Watering hole has enough chosen food?"}
+    I -- No, hand has cards --> J["Discard a card; add food matching its deck"]
+    J --> H
+    I -- Yes --> K{"Any chosen food remains?"}
+    I -- No, hand empty --> K
+    K -- Yes --> L["Eat the chosen type only; a forage cannot mix plants and bamboo"]
+    K -- No --> M["Try Territorial food"]
+    G -- No --> M
+    M --> N{"Territorial forage succeeded?"}
+    N -- No --> O["Initial forage fails: try next candidate; a failed bonus forage ends this feeding turn"]
+    N -- Yes --> P["Resolve Opportunistic if plants remain in watering hole"]
+    L --> P
+    P --> Q["Other active-player Folivore copies eat plants from supply"]
+    Q --> R["Resolve Root Eating for each copy while watering-hole food remains"]
+    R --> S{"Did Root Eating empty all watering-hole food?"}
+    S -- Yes --> T["Every Tusked copy in the game triggers: eat 1 meat each"]
+    S -- No --> U["Continue"]
+    T --> U
+    U --> V{"More Avid Forager copies to attempt?"}
+    V -- Yes --> X{"Is the forager Monophagous?"}
+    X -- Yes --> B
+    X -- No --> G
+    V -- No --> W["Finish feeding turn"]
+```
+
+### Hunt and prey selection
+
+```mermaid
+flowchart TD
+    A["Try a hungry hunter, including a Stalking species"] --> B["Inspect next species as a possible prey"]
+    B --> C{"Any species left to inspect?"}
+    C -- No --> D{"Any valid prey found?"}
+    C -- Yes --> E{"Not the hunter itself and defense <= attack?"}
+    E -- No --> B
+    E -- Yes --> F{"Does prey have any evasive trait?"}
+    F -- No --> I["Add species to valid prey"]
+    F -- Yes --> G{"Stalking hunter and prey fully fed?"}
+    G -- Yes --> I
+    G -- No --> H{"Fast copies matched and Arboreal prey has an Arboreal hunter?"}
+    H -- No --> B
+    H -- Yes --> I
+    I --> B
+    D -- No --> J["Hunt fails; try next candidate"]
+    D -- Yes --> K["Rank targets by hunter's expected population losses"]
+    K --> L["Minimize own prey killed + hunter losses from prey's Horned copies"]
+    L --> M["Tie-break: opponent prey, smaller size, older species"]
+    M --> N["Hunter eats meat equal to prey size, capped by hunger"]
+    N --> O["Kill one prey population"]
+    O --> P["If prey had Horned, kill up to prey size per Horned copy from hunter"]
+    P --> Q["Every Scavenging copy on every species triggers: eat 2 meat each"]
+    Q --> R{"Plants remain in watering hole?"}
+    R -- Yes --> S["Active player's Opportunistic copies trigger: eat 2 meat each"]
+    R -- No --> T["Finish feeding turn"]
+    S --> T
+```
+
+In Bamboo Grove, a forage takes either plants or bamboo, never a mix. Monophagous selects bamboo when the watering-hole estimate includes bamboo (including potential Bamboo Grove card refills), and otherwise selects plants. If that forage cannot feed, the Territorial fallback checks bamboo first for Monophagous. Other foragers choose bamboo only when its projected gain is greater than the plant gain; ties favor plants. Avid Forager repeats the same food choice, with Monophagous rechecking its availability for each bonus forage.
+
+The forage amount is capped by hunger and food at the selected source. Social adds two food per copy; Arboreal adds one food per copy from either forage type; Clawed adds two only when foraging for plants. Refills add the discarded card's printed value to the food type associated with that card's deck. After any successful forage, Opportunistic triggers if plants remain in the watering hole, Folivore triggers on the active player's other species, and then Root Eating resolves. Root Eating can eat or discard food still in the watering hole; Tusked triggers when that removes the last food of either type. Territorial food can be used as a fallback forage source.
+
+Stalking makes a species a hunter. It can bypass evasive traits when the prey is fully fed; otherwise Fast must still be matched, and Arboreal prey still require an Arboreal hunter. A hunter that eats prey with Horned loses population as shown in the shared hunt flow. Scavenging and Opportunistic resolve after a successful hunt as shown above.
+
+As in core Nature, candidates are ranked once per turn by projected gain and starvation removes one population using the same priority order. The Bamboo Grove forage projection also accounts for food-type availability, card decks, Territorial food, and module trait triggers.

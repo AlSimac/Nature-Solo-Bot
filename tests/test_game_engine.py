@@ -26,7 +26,7 @@ class GameEngineTest(unittest.TestCase):
         self.assertIsNotNone(state.food_card)
         self.assertGreater(state.plant_per_round, 0)
         self.assertNotIn(state.food_card, state.nature_deck)
-        self.assertIn(state.first_player_index, range(state.number_players))
+        self.assertEqual(state.first_player_index, 0)
         print(
             f"Food card drawn: {state.food_card.name} with food value {state.food_card.food_value}"
         )
@@ -44,14 +44,10 @@ class GameEngineTest(unittest.TestCase):
         self.assertIs(state.all_decks[1], bamboo_decks.deck)
         self.assertEqual(len(Card.init_trait_decks(module=BAMBOO_GROVE)), 40)
         self.assertEqual({card.trait for card in bamboo_decks.deck}, set(BAMBOO_GROVE_TRAITS))
-        self.assertTrue(
-            all(card.deck == BAMBOO_GROVE for card in bamboo_decks.discard)
-        )
+        self.assertTrue(all(card.deck == BAMBOO_GROVE for card in bamboo_decks.discard))
         bamboo_solo_species = {"Chi Chi", "Chomps", "Feng", "Trim"}
         for player in state.players:
-            available_species = {
-                card.name for card in player.solo_deck
-            } | {
+            available_species = {card.name for card in player.solo_deck} | {
                 species.solo_species.name for species in player.species
             }
             self.assertEqual(

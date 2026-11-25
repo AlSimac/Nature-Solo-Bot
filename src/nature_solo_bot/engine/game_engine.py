@@ -75,7 +75,7 @@ class GameEngine:
         else:
             state.plant_per_round = state.food_card.food_value * state.number_players
 
-        state.first_player_index = self.rng.randrange(state.number_players)
+        state.first_player_index = 0
         # Adding a new species for each player at the start of the game
         # this is before setting the current round to 1,
         # so that the species are created with round_created = 0

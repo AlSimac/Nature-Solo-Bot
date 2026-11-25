@@ -1,7 +1,7 @@
 # Nature-Solo-Bot
 Nature board game Solo mode automa
 
-See [FEEDING_PHASE_FLOWCHART.md](./FEEDING_PHASE_FLOWCHART.md) for a complete chart of the feeding phase, including feeding priorities, trait triggers, hunting, and starvation.
+See [FEEDING_PHASE_FLOWCHART.md](./FEEDING_PHASE_FLOWCHART.md) for separate core Nature and Bamboo Grove feeding diagrams, including feeding priorities, trait triggers, hunting, and starvation.
 
 ## Disclaimer
 

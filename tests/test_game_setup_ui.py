@@ -65,7 +65,15 @@ class GameSetupUiTest(unittest.TestCase):
                 "src.nature_solo_bot.cli.analyze_traits._parse_counts",
                 return_value={},
             ):
-                reports = run_analysis(folder, output_directory, analyses)
+                progress = []
+                reports = run_analysis(
+                    folder,
+                    output_directory,
+                    analyses,
+                    progress_callback=lambda completed, total: progress.append(
+                        (completed, total)
+                    ),
+                )
 
             self.assertEqual(
                 [report.name for report in reports],
@@ -77,6 +85,7 @@ class GameSetupUiTest(unittest.TestCase):
                 ],
             )
             self.assertTrue(all(report.is_file() for report in reports))
+            self.assertEqual(progress, [(1, 4), (2, 4), (3, 4), (4, 4)])
 
 
 if __name__ == "__main__":
