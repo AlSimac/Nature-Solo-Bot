@@ -28,7 +28,8 @@ Select the game count and difficulty, then choose any modules and their Promo
 cards. Nature Promo cards can be enabled separately. Use **Browse...** to
 choose the folder where game logs will be saved; the default is `output\Nature`.
 Each run creates a timestamped subfolder there, then saves game logs numbered
-in order under its `simulations` subfolder. The last chosen output folder is
+in order under its `simulations` subfolder. A `run_settings.md` file beside
+that subfolder records the run configuration. The last chosen output folder is
 remembered for the next launch.
 
 Use the **Analysis** tab to select a timestamped run folder (or its

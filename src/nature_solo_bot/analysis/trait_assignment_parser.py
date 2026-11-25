@@ -147,9 +147,9 @@ class TraitAssignmentParser:
     def parse_folder(self, folder: str | Path) -> dict[str, TraitAssignmentCounts]:
         """Parse game logs under ``folder``, recursively, and count assignments.
 
-        An assignment is counted when an adaptation log line shows a trait
-        attached to a species. Merely having or triggering a trait is not
-        counted as a new assignment.
+        Counts traits attached during adaptation and traits granted by solo
+        species during the first preparation. Merely having or triggering a
+        trait is not counted as a new assignment.
         """
         directory = Path(folder)
         if not directory.is_dir():
@@ -273,15 +273,42 @@ class TraitAssignmentParser:
         players: list[str] | None = None
         winner: str | None = None
         assignment_lines: list[tuple[int, str, str]] = []
+        reading_initial_preparation = False
+        initial_preparation_read = False
+        current_player: str | None = None
 
         for line_number, line in enumerate(
             log_path.read_text(encoding="utf-8").splitlines(),
             start=1,
         ):
+            round_match = _ROUND_PATTERN.match(line)
+            if round_match is not None:
+                reading_initial_preparation = (
+                    not initial_preparation_read
+                    and round_match.group("round") == "1"
+                    and round_match.group("phase") == "PREPARATION"
+                )
+                if reading_initial_preparation:
+                    initial_preparation_read = True
+                current_player = None
+
             if line.startswith("Players: "):
                 players = [name.strip() for name in line.removeprefix("Players: ").split(",")]
             elif line.startswith("Winner: "):
                 winner = line.removeprefix("Winner: ").strip()
+
+            if reading_initial_preparation:
+                player_match = re.match(r"^\s*(?P<player>[^:]+) hand:", line)
+                if player_match is not None:
+                    current_player = player_match.group("player").strip()
+                else:
+                    species_match = _SPECIES_BOARD_PATTERN.match(line)
+                    if species_match is not None and current_player is not None:
+                        assignment_lines.extend(
+                            (line_number, current_player, trait.strip())
+                            for trait in species_match.group("traits").split(",")
+                            if trait.strip() and trait.strip().lower() != "none"
+                        )
 
             match = _ASSIGNMENT_PATTERN.match(line)
             if match is not None:

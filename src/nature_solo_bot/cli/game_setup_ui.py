@@ -55,6 +55,41 @@ def _save_last_output_folder(folder: str, settings_file: Path) -> None:
     settings_file.write_text(str(selected_folder), encoding="utf-8")
 
 
+def _write_run_settings(
+    run_directory: Path,
+    *,
+    game_count: int,
+    difficulty: str,
+    modules: list[str],
+    nature_promo: bool,
+    promo_modules: list[str],
+    output_folder: Path,
+    start_seed: int = 1,
+) -> Path:
+    """Write the chosen batch configuration beside its simulations folder."""
+    settings_path = run_directory.parent / "run_settings.md"
+    module_list = "\n".join(f"- `{module}`" for module in modules) or "- None"
+    promo_module_list = (
+        "\n".join(f"- `{module}`" for module in promo_modules) or "- None"
+    )
+    settings = (
+        "# Simulation run settings\n\n"
+        f"- Run timestamp: `{run_directory.parent.name}`\n"
+        f"- Number of games: {game_count}\n"
+        f"- Difficulty: {difficulty}\n"
+        f"- Starting seed: {start_seed}\n"
+        f"- Nature (Core) Promo cards: {'Enabled' if nature_promo else 'Disabled'}\n"
+        f"- Output folder: `{output_folder}`\n"
+        f"- Simulation logs folder: `{run_directory}`\n\n"
+        "## Modules\n\n"
+        f"{module_list}\n\n"
+        "## Modules with Promo cards\n\n"
+        f"{promo_module_list}\n"
+    )
+    settings_path.write_text(settings, encoding="utf-8")
+    return settings_path
+
+
 def _analysis_directories(selected_folder: str) -> tuple[Path, Path]:
     """Resolve the selected run or simulations folder to logs and report folders."""
     selected_directory = Path(selected_folder).expanduser().resolve()
@@ -361,22 +396,29 @@ class GameSetupWindow:
             if self._promo_vars[module].get()
         ]
         output_root = Path(output_folder).expanduser()
-        run_directory = (
-            output_root
-            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
-            / "simulations"
-        )
+        run_folder = output_root / datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+        run_directory = run_folder / "simulations"
         try:
+            run_folder.mkdir(parents=True, exist_ok=False)
             run_directory.mkdir(parents=True, exist_ok=False)
+            settings_path = _write_run_settings(
+                run_directory,
+                game_count=game_count,
+                difficulty=difficulty_name,
+                modules=modules,
+                nature_promo=self.nature_promo.get(),
+                promo_modules=promo_modules,
+                output_folder=output_root.resolve(),
+            )
         except OSError as error:
-            messagebox.showerror("Could not create run folder", str(error))
+            messagebox.showerror("Could not prepare run folder", str(error))
             return
 
         self.run_button.configure(state=tk.DISABLED)
         self.run_analysis_button.configure(state=tk.DISABLED)
         self.progress.set(0)
         self.progress_bar.configure(maximum=game_count)
-        self.status.set("Running games...")
+        self.status.set(f"Running games... Settings saved to {settings_path}")
         # Game simulations can take time; keep Tk responsive while they run.
         threading.Thread(
             target=self._run_batch,

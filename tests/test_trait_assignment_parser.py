@@ -68,6 +68,36 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(counts["Fast"].tied, 1)
         self.assertEqual(counts["Clawed"].tied, 1)
 
+    def test_counts_solo_species_traits_from_first_preparation_only(self):
+        log_lines = (
+            "Players: Rani, Radwin",
+            "ROUND 1 - PREPARATION",
+            "Rani hand: empty",
+            "  S1 Chomps (tree=PINK, size=1, population=1, "
+            "traits=[Root Eating, Root Eating, Social])",
+            "Radwin hand: empty",
+            "  S2 Trim (tree=PINK, size=1, population=1, "
+            "traits=[Stalking, Arboreal])",
+            "ROUND 1 - ADAPTATION",
+            "  Rani: Card -> S1 trait 'Fast'",
+            "ROUND 2 - PREPARATION",
+            "Rani hand: empty",
+            "  S1 Chomps (tree=PINK, size=1, population=1, "
+            "traits=[Root Eating, Root Eating, Social, Fast])",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_bamboo.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+
+            counts = TraitAssignmentParser().parse_folder(temporary_directory)
+
+        self.assertEqual(counts["Root Eating"].winner, 2)
+        self.assertEqual(counts["Social"].winner, 1)
+        self.assertEqual(counts["Stalking"].loser, 1)
+        self.assertEqual(counts["Arboreal"].loser, 1)
+        self.assertEqual(counts["Fast"].winner, 1)
+
     def test_fails_for_log_without_a_valid_winner(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_path = Path(temporary_directory) / "gamelog_2_invalid.log"

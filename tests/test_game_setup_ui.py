@@ -11,6 +11,7 @@ from src.nature_solo_bot.cli.game_setup_ui import (
     _analysis_directories,
     _load_last_output_folder,
     _save_last_output_folder,
+    _write_run_settings,
 )
 
 
@@ -32,6 +33,31 @@ class GameSetupUiTest(unittest.TestCase):
             output_folder = _load_last_output_folder(settings_file)
 
         self.assertEqual(output_folder, str(selected_folder.resolve()))
+
+    def test_run_settings_are_written_in_parent_of_simulations_folder(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_folder = Path(temporary_directory) / "2026-11-25_21-03-04_451234"
+            simulations_folder = run_folder / "simulations"
+            simulations_folder.mkdir(parents=True)
+
+            settings_path = _write_run_settings(
+                simulations_folder,
+                game_count=25,
+                difficulty="Hard",
+                modules=["bamboo_grove"],
+                nature_promo=True,
+                promo_modules=["bamboo_grove"],
+                output_folder=Path(temporary_directory),
+            )
+            settings = settings_path.read_text(encoding="utf-8")
+
+        self.assertEqual(settings_path, run_folder / "run_settings.md")
+        self.assertIn("- Number of games: 25", settings)
+        self.assertIn("- Difficulty: Hard", settings)
+        self.assertIn("- Starting seed: 1", settings)
+        self.assertIn("- Nature (Core) Promo cards: Enabled", settings)
+        self.assertIn("- `bamboo_grove`", settings)
+        self.assertIn(f"- Simulation logs folder: `{simulations_folder}`", settings)
 
     def test_analysis_uses_timestamped_run_analysis_folder(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

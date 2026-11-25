@@ -106,12 +106,19 @@ class BatchRunnerTest(unittest.TestCase):
             )
             GameLogger().run_game(engine, log_path, game_number=1)
             log_text = log_path.read_text(encoding="utf-8")
+            parsed_assignments = TraitAssignmentParser().parse_folder(log_path.parent)
             parsed_food = TraitAssignmentParser().parse_food_by_trait(log_path.parent)
 
         self.assertIn("bamboo added per round:", log_text)
         self.assertIn("Bamboo Grove deck:", log_text)
         self.assertIn("watering hole: 0 plant,", log_text)
         self.assertIn("(Bamboo Grove)", log_text)
+        self.assertGreater(
+            parsed_assignments["Arboreal"].winner
+            + parsed_assignments["Arboreal"].loser
+            + parsed_assignments["Arboreal"].tied,
+            0,
+        )
         self.assertTrue(parsed_food)
         self.assertTrue(
             any(stats.total_bamboo_food > 0 for rounds in parsed_food.values() for stats in rounds.values())
