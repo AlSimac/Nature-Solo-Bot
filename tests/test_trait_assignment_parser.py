@@ -234,6 +234,43 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(stats["Glutton"].times_extinct, 1)
         self.assertEqual(stats["Glutton"].total_lost_population, 3)
 
+    def test_parses_compact_logger_format(self):
+        log_lines = (
+            "FULL GAME SETUP",
+            "Players: Rani, Radwin",
+            "ROUND 1 - ADAPTATION",
+            "  Rani: Fast -> S1 trait 'Fast'",
+            "Species at the end of adaptation:",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "  S2 Glutton (tree=PINK, size=1, population=2, traits=[none])",
+            "ROUND 1 - FEEDING",
+            "Watering hole after feeding: 0",
+            "  Rani turn: S1 ate 2 plant food; S1 ate 1 bamboo food",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "  Radwin: S2 Glutton ate 1 food (0 plant, 1 meat); population 2 to extinct",
+            "ROUND 1 - SCORING",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_compact.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+            parser = TraitAssignmentParser()
+
+            assignments = parser.parse_folder(temporary_directory)
+            food_by_trait = parser.parse_food_by_trait(temporary_directory)
+            combinations = parser.parse_trait_combinations(temporary_directory)
+            solo_species = parser.parse_solo_species(temporary_directory)
+
+        self.assertEqual(assignments["Fast"].winner, 1)
+        self.assertEqual(food_by_trait["Fast"][1].total_food, 3)
+        self.assertEqual(combinations[("Fast",)].total_food, 3)
+        self.assertEqual(combinations[("Fast",)].total_lost_population, 0)
+        self.assertEqual(combinations[()].times_extinct, 1)
+        self.assertEqual(combinations[()].total_food, 1)
+        self.assertEqual(solo_species["Evader"].total_food, 3)
+        self.assertEqual(solo_species["Glutton"].times_extinct, 1)
+        self.assertEqual(solo_species["Glutton"].total_lost_population, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,9 +1,10 @@
-"""Write detailed, parser-friendly logs for complete games."""
+"""Write concise, parser-friendly logs for complete games."""
 
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from unittest.mock import patch
 
+from ..const import BAMBOO, MEAT, PLANT
 from ..engine.action_applier import ActionApplier
 from ..engine.game_engine import GameEngine
 from ..game.model.player import Player
@@ -62,10 +63,10 @@ class GameLogger:
         food_value = getattr(card, "food_value", None)
         symbol = getattr(card, "solo_symbol", None)
         if food_value is not None:
-            details.append(f"food={food_value}")
+            details.append(str(food_value))
         if symbol is not None:
-            details.append(f"symbol={symbol.value}")
-        return f"{name} ({', '.join(details)})" if details else str(name)
+            details.append(symbol.value)
+        return f"{name}[{'/'.join(details)}]" if details else str(name)
 
     def species_description(self, species: Species) -> str:
         traits = ", ".join(card.trait.name for card in species.trait_cards) or "none"
@@ -74,12 +75,13 @@ class GameLogger:
             f"(tree={species.tree_color.name}, size={species.size}, "
             f"attack={species.attack_value}, defense={species.defense_value}, "
             f"population={species.population}, traits=[{traits}], "
-            f"plant food={species.plant_food}, meat food={species.meat_food})"
+            f"food (plant/meat/bamboo)="
+            f"{species.plant_food}/{species.meat_food}/{species.bamboo_food})"
         )
 
     def player_board(self, player: Player) -> None:
-        hand = "; ".join(self.card_name(card) for card in player.hand)
-        self.write(f"{player.name}: hand=[{hand}]")
+        hand = ", ".join(self.card_name(card) for card in player.hand) or "empty"
+        self.write(f"{player.name} hand: {hand}")
         for species in player.species:
             self.write(f"  {self.species_description(species)}")
 
@@ -180,22 +182,22 @@ class GameLogger:
         assert self._original_feeding_turn is not None
         self._feeding_actions = []
         self._original_feeding_turn(state, player, rng)
-        self.write(f"  {player.name} feeding turn:")
         if self._feeding_actions:
-            for action in self._feeding_actions:
-                self.write(f"    {action}")
+            self.write(f"  {player.name} turn: " + "; ".join(self._feeding_actions))
         elif player.passing:
-            self.write("    passes (no hungry species)")
+            self.write(f"  {player.name} turn: passes")
         else:
-            self.write("    no feeding action")
+            self.write(f"  {player.name} turn: no action")
         self._feeding_actions = None
 
-    def _trace_forage(self, state: GameState, species: Species) -> None:
+    def _trace_forage(self, state: GameState, species: Species, food_type: str) -> None:
         assert self._original_forage is not None
-        before_food = species.plant_food
-        self._original_forage(state, species)
+        before_food = species.eaten_food[food_type]
+        self._original_forage(state, species, food_type)
+        amount = species.eaten_food[food_type] - before_food
+        food_name = {PLANT: "plant", MEAT: "meat", BAMBOO: "bamboo"}[food_type]
         self._record_feeding_action(
-            f"{self.species_id(species)} ate " f"{species.plant_food - before_food} plant food"
+            f"{self.species_id(species)} ate {amount} {food_name} food"
         )
 
     def _trace_hunt(self, state: GameState, player: Player, species: Species) -> bool:
@@ -209,15 +211,14 @@ class GameLogger:
         hunted = self._original_hunt(state, player, species)
         if hunted:
             prey_losses = [
-                f"{self.species_id(candidate)} lost "
-                f"{before_population - candidate.population} population"
+                f"{self.species_id(candidate)} -{before_population - candidate.population} pop"
                 for candidate, before_population in before_populations.items()
                 if candidate.population < before_population
             ]
-            details = ", ".join(prey_losses) or "prey population unchanged"
+            prey_details = ", ".join(prey_losses) or "prey unchanged"
             self._record_feeding_action(
                 f"{self.species_id(species)} ate "
-                f"{species.meat_food - before_meat} meat food by hunting; {details}"
+                f"{species.meat_food - before_meat} meat food (hunt; {prey_details})"
             )
         return hunted
 
@@ -245,71 +246,42 @@ class GameLogger:
             return
 
         trigger_details = {
-            TUSKED.effect_id: ("Tusked", "the watering hole emptied"),
-            SCAVENGING.effect_id: ("Scavenging", "after a successful hunt"),
-            OPPORTUNISTIC.effect_id: (
-                "Opportunistic",
-                "after feeding while plants remained",
-            ),
+            TUSKED.effect_id: ("Tusked", "hole emptied"),
+            SCAVENGING.effect_id: ("Scavenging", "successful hunt"),
+            OPPORTUNISTIC.effect_id: ("Opportunistic", "plants remained"),
         }
         trait_name, trigger_reason = trigger_details.get(trait_id, (trait_id, "triggered"))
         for species, previous_food in before_food.items():
             food_eaten = species.total_food - previous_food
             if food_eaten > 0:
-                self._write_trait_trigger(
-                    species,
-                    trait_id,
-                    trait_name,
-                    trigger_reason,
-                    food_type,
-                    food_eaten,
-                    trigger_counts,
+                copies = trigger_counts[species]
+                social_copies = species.trait_count(SOCIAL.effect_id)
+                social_note = f", Social x{social_copies}" if social_copies else ""
+                self._record_feeding_action(
+                    f"{self.species_id(species)} ate {food_eaten} "
+                    f"{food_type.removesuffix('_food')} food "
+                    f"({trait_name} x{copies} trigger{social_note}; {trigger_reason})"
                 )
-
-    def _write_trait_trigger(
-        self,
-        species: Species,
-        trait_id: str,
-        trait_name: str,
-        trigger_reason: str,
-        food_type: str,
-        food_eaten: int,
-        trigger_counts: dict[Species, int],
-    ) -> None:
-        copies = trigger_counts[species]
-        social_copies = species.trait_count(SOCIAL.effect_id)
-        social_details = (
-            f"; {social_copies} Social " f"{'copy' if social_copies == 1 else 'copies'}"
-            if social_copies
-            else ""
-        )
-        self._record_feeding_action(
-            f"{self.species_id(species)} ate {food_eaten} "
-            f"{food_type.removesuffix('_food')} food from "
-            f"{trait_name} trigger ({copies} "
-            f"{'copy' if copies == 1 else 'copies'}"
-            f"{social_details}; {trigger_reason})"
-        )
 
     def _trace_starve(self, state: GameState, species: Species, player: Player) -> None:
         assert self._original_starve is not None
         before_population = species.population
         self._original_starve(state, species, player)
-        status = "extinct" if species not in player.species else f"population {species.population}"
+        status = "extinct" if species not in player.species else str(species.population)
         self._record_feeding_action(
-            f"{self.species_id(species)} starved " f"(population {before_population} to {status})"
+            f"{self.species_id(species)} starved ({before_population} -> {status})"
         )
 
-    def _trace_discard(self, state: GameState, player: Player, rng) -> None:
+    def _trace_discard(self, state: GameState, player: Player, rng, food_type: str) -> None:
         assert self._original_discard is not None
-        assert state.nature_discard is not None
-        previous_discard_size = len(state.nature_discard)
-        self._original_discard(state, player, rng)
-        new_cards = state.nature_discard[: len(state.nature_discard) - previous_discard_size]
-        for card in new_cards:
+        previous_hand = list(player.hand)
+        self._original_discard(state, player, rng, food_type)
+        remaining_ids = {id(card) for card in player.hand}
+        discarded_cards = [card for card in previous_hand if id(card) not in remaining_ids]
+        food_name = {PLANT: "plant", MEAT: "meat", BAMBOO: "bamboo"}[food_type]
+        for card in discarded_cards:
             self._record_feeding_action(
-                f"{player.name} discarded {self.card_name(card)} for "
-                f"{card.food_value} plant food"
+                f"discarded {self.card_name(card)} (+{card.food_value} {food_name})"
             )
 
     def _trace_feeding(self) -> None:
@@ -319,7 +291,7 @@ class GameLogger:
         self._original_feeding()
         self.write(f"Watering hole after feeding: {self.state.watering_hole_plant}")
         for player in self.state.players:
-            self.write(f"  {player.name} species after feeding:")
+            self.write(f"  {player.name} after feeding:")
             for species in player.species:
                 self.write(
                     f"    {self.species_description(species)}; "
@@ -428,6 +400,7 @@ class GameLogger:
             f"cards_to_draw={self.state.difficulty.cards_to_draw}"
         )
         self.write(f"Promo cards: {engine.promo}")
+        self.write(f"Modules: {', '.join(engine.modules) if engine.modules else 'none'}")
         self.write(f"Players: {', '.join(player.name for player in self.state.players)}")
         self.write(f"Rounds: {self.state.total_rounds}")
         self.write(f"First player: {self.state.players[self.state.first_player_index].name}")
@@ -461,7 +434,7 @@ class GameLogger:
         *,
         game_number: int,
     ) -> GameState:
-        """Run and log one game, writing the complete trace to ``output_path``."""
+        """Run and log one game, writing a concise trace to ``output_path``."""
         self.lines.clear()
         self.species_ids.clear()
         self._state = engine.setup_game()

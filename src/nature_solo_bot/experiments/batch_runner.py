@@ -25,6 +25,7 @@ class BatchRunner:
         *,
         start_seed: int = 1,
         difficulty: Difficulty = Difficulty.MEDIUM,
+        modules: list[str] | None = None,
         promo: bool = False,
     ) -> None:
         if game_count <= 0:
@@ -33,6 +34,7 @@ class BatchRunner:
         self.game_count = game_count
         self.start_seed = start_seed
         self.difficulty = difficulty
+        self.modules = list(modules or [])
         self.promo = promo
 
     def run(
@@ -52,6 +54,7 @@ class BatchRunner:
             engine = GameEngine(
                 seed=seed,
                 difficulty=self.difficulty,
+                modules=self.modules,
                 promo=self.promo,
             )
             log_path = directory / (

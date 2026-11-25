@@ -1,10 +1,12 @@
 """Command-line entry point for running simulation batches."""
 
 import argparse
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 from ..experiments import BatchRunner
+from ..game.model.modules import MODULE_DEFINITIONS
 from ..game.model.state import Difficulty
 
 
@@ -35,13 +37,20 @@ class RunExperiments:
             help="game difficulty (default: medium)",
         )
         parser.add_argument(
+            "--module",
+            nargs="+",
+            choices=tuple(MODULE_DEFINITIONS),
+            metavar="MODULE",
+            help="one or more game modules to include",
+        )
+        parser.add_argument(
             "--promo",
             action="store_true",
             help="include Promo cards",
         )
         parser.add_argument(
             "--output-dir",
-            help="directory for game logs (defaults to output/Nature/<difficulty>/<core-or-promo>)",
+            help="directory for game logs (defaults under output/Nature/<difficulty>)",
         )
         options = parser.parse_args(arguments)
         if options.games <= 0:
@@ -54,16 +63,20 @@ class RunExperiments:
             "hard": Difficulty.HARD,
             "hardest": Difficulty.HARDEST,
         }
-        output_directory = options.output_dir or str(
+        default_output_path = (
             Path("output")
             / "Nature"
             / options.difficulty
             / ("promo" if options.promo else "core")
         )
+        if options.module:
+            default_output_path /= "+".join(options.module)
+        output_directory = options.output_dir or str(default_output_path)
         log_paths = BatchRunner(
             game_count=options.games,
             start_seed=options.start_seed,
             difficulty=difficulties[options.difficulty],
+            modules=options.module,
             promo=options.promo,
         ).run(output_directory)
         print(f"Saved {len(log_paths)} game logs to {output_directory}")
@@ -101,6 +114,9 @@ class RunExperiments:
 
 def main() -> int:
     """Run the CLI using the process command-line arguments."""
+    if len(sys.argv) > 1:
+        return RunExperiments.run()
+
     return RunExperiments.run_loop()
 
 

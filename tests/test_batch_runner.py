@@ -5,10 +5,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.nature_solo_bot.analysis import GameLogger
-from src.nature_solo_bot.cli.run_experiments import RunExperiments
+from src.nature_solo_bot.analysis import GameLogger, TraitAssignmentParser
+from src.nature_solo_bot.cli.run_experiments import RunExperiments, main
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.experiments import BatchRunner
+from src.nature_solo_bot.game.model.modules import MODULE_DEFINITIONS
 from src.nature_solo_bot.game.model.state import Difficulty
 
 
@@ -48,9 +49,9 @@ class BatchRunnerTest(unittest.TestCase):
             self.assertIn("final scores:", log_text)
             self.assertRegex(log_text, r"Winner: (Rani|Radwin)")
 
-    def test_log_captures_trait_trigger_details(self):
+    def test_log_keeps_details_in_compact_form_and_preserves_game_behavior(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
-            log_path = Path(temporary_directory) / "gamelog.log"
+            log_path = Path(temporary_directory) / "gamelog_2_test.log"
             baseline_state = GameEngine(
                 seed=0,
                 difficulty=Difficulty.MEDIUM,
@@ -63,18 +64,29 @@ class BatchRunnerTest(unittest.TestCase):
                 game_number=1,
             )
             log_text = log_path.read_text(encoding="utf-8")
+            parser = TraitAssignmentParser()
+            parsed_assignments = parser.parse_folder(log_path.parent)
+            parsed_food = parser.parse_food_by_trait(log_path.parent)
+            parsed_combinations = parser.parse_trait_combinations(log_path.parent)
+            parsed_species = parser.parse_solo_species(log_path.parent)
 
         self.assertEqual(completed_state.current_round, completed_state.total_rounds + 1)
         self.assertEqual(
             [player.score for player in completed_state.players],
             [player.score for player in baseline_state.players],
         )
-        self.assertIn("Tusked trigger", log_text)
-        self.assertIn("Scavenging trigger", log_text)
-        self.assertIn("Opportunistic trigger", log_text)
-        self.assertIn("the watering hole emptied", log_text)
-        self.assertIn("after a successful hunt", log_text)
-        self.assertIn("after feeding while plants remained", log_text)
+        self.assertIn("Rani hand:", log_text)
+        self.assertRegex(log_text, r"Rani turn: .*S\d+ ate \d+ (?:plant|meat) food")
+        self.assertRegex(log_text, r"Rani turn: .*discarded \w+\[\d+/[a-z]+\]")
+        self.assertIn("hunt;", log_text)
+        self.assertIn("starved (", log_text)
+        self.assertIn("passes", log_text)
+        self.assertIn("trigger", log_text)
+        self.assertNotIn("symbol=", log_text)
+        self.assertTrue(parsed_assignments)
+        self.assertTrue(parsed_food)
+        self.assertTrue(parsed_combinations)
+        self.assertTrue(parsed_species)
 
     def test_constructor_rejects_nonpositive_game_count(self):
         with self.assertRaisesRegex(ValueError, "game_count"):
@@ -112,6 +124,56 @@ class BatchRunnerTest(unittest.TestCase):
                 for content in contents
             )
         )
+
+    def test_cli_accepts_multiple_modules_and_passes_them_to_runner(self):
+        extra_module = "test_module"
+        with patch(
+            "src.nature_solo_bot.cli.run_experiments.MODULE_DEFINITIONS",
+            {**MODULE_DEFINITIONS, extra_module: next(iter(MODULE_DEFINITIONS.values()))},
+        ):
+            with patch(
+                "src.nature_solo_bot.cli.run_experiments.BatchRunner"
+            ) as runner:
+                runner.return_value.run.return_value = []
+                exit_code = RunExperiments.run(
+                    ["--module", "bamboo_grove", extra_module, "--games", "1"]
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(
+            runner.call_args.kwargs["modules"],
+            ["bamboo_grove", extra_module],
+        )
+        runner.return_value.run.assert_called_once_with(
+            str(Path("output") / "Nature" / "medium" / "core" / "bamboo_grove+test_module")
+        )
+
+    def test_batch_runner_passes_modules_to_each_engine(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch("src.nature_solo_bot.experiments.batch_runner.GameEngine") as engine:
+                with patch("src.nature_solo_bot.experiments.batch_runner.GameLogger"):
+                    BatchRunner(
+                        game_count=1,
+                        modules=["bamboo_grove"],
+                    ).run(temporary_directory)
+
+        engine.assert_called_once()
+        self.assertEqual(
+            engine.call_args.kwargs["modules"],
+            ["bamboo_grove"],
+        )
+
+    def test_main_uses_supplied_cli_options_instead_of_run_loop(self):
+        with patch(
+            "src.nature_solo_bot.cli.run_experiments.sys.argv",
+            ["run_experiments", "--games", "1"],
+        ):
+            with patch.object(RunExperiments, "run", return_value=0) as run:
+                with patch.object(RunExperiments, "run_loop") as run_loop:
+                    self.assertEqual(main(), 0)
+
+        run.assert_called_once_with()
+        run_loop.assert_not_called()
 
     def test_cli_run_loop_runs_each_difficulty_with_separate_promo_outputs(self):
         with patch.object(RunExperiments, "run", return_value=0) as run:

@@ -1,4 +1,4 @@
-"""Count trait assignments by game outcome across detailed game logs."""
+"""Count trait assignments and feeding outcomes across game logs."""
 
 import re
 from collections import defaultdict
@@ -11,10 +11,17 @@ _SPECIES_BOARD_PATTERN = re.compile(
     r"^\s+(?P<species>S\d+) .+ population=(?P<population>\d+), " r"traits=\[(?P<traits>[^]]*)\]"
 )
 _SOLO_SPECIES_BOARD_PATTERN = re.compile(
-    r"^\s+(?P<species>S\d+) (?P<solo_species>.+?) \(tree=.* "
-    r"population=(?P<population>\d+), traits=\["
+    r"^\s+(?P<species>S\d+) (?P<solo_species>.+?) \(.*?population="
+    r"(?P<population>\d+), traits=\["
 )
-_FOOD_EATEN_PATTERN = re.compile(r"^\s+(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat) food\b")
+_FOOD_EATEN_PATTERN = re.compile(
+    r"\b(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat|bamboo) food\b"
+)
+_FEEDING_SUMMARY_PATTERN = re.compile(
+    r"^\s+[^:]+:\s+(?P<species>S\d+) (?P<solo_species>.+?) ate "
+    r"(?P<amount>\d+) food \(\d+ plant, \d+ meat\); population "
+    r"\d+ to (?P<population>\d+|extinct)$"
+)
 
 
 @dataclass(slots=True)
@@ -334,8 +341,11 @@ class TraitAssignmentParser:
     def _read_food_totals(lines: list[str]) -> defaultdict[str, int]:
         food_by_species: defaultdict[str, int] = defaultdict(int)
         for line in lines:
-            match = _FOOD_EATEN_PATTERN.match(line)
+            match = _FEEDING_SUMMARY_PATTERN.match(line)
             if match is not None:
+                food_by_species[match.group("species")] += int(match.group("amount"))
+                continue
+            for match in _FOOD_EATEN_PATTERN.finditer(line):
                 food_by_species[match.group("species")] += int(match.group("amount"))
         return food_by_species
 
@@ -345,6 +355,13 @@ class TraitAssignmentParser:
     ) -> dict[str, tuple[tuple[str, ...], int]]:
         states: dict[str, tuple[tuple[str, ...], int]] = {}
         for line in lines:
+            summary_match = _FEEDING_SUMMARY_PATTERN.match(line)
+            if summary_match is not None:
+                population = summary_match.group("population")
+                if population != "extinct":
+                    states[summary_match.group("species")] = ((), int(population))
+                continue
+
             match = _SPECIES_BOARD_PATTERN.match(line)
             if match is None:
                 continue
@@ -415,6 +432,16 @@ class TraitAssignmentParser:
     ) -> dict[str, tuple[str, int]]:
         states: dict[str, tuple[str, int]] = {}
         for line in lines:
+            summary_match = _FEEDING_SUMMARY_PATTERN.match(line)
+            if summary_match is not None:
+                population = summary_match.group("population")
+                if population != "extinct":
+                    states[summary_match.group("species")] = (
+                        summary_match.group("solo_species"),
+                        int(population),
+                    )
+                continue
+
             match = _SOLO_SPECIES_BOARD_PATTERN.match(line)
             if match is not None:
                 states[match.group("species")] = (

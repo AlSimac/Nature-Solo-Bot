@@ -32,6 +32,14 @@ You can change the run settings and output directory with options:
 .\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.run_experiments --games 1000 --start-seed 1 --difficulty hard --promo --output-dir output
 ```
 
+Select one or more game modules with `--module`. The currently supported
+module is `bamboo_grove`; module runs are saved in a module-specific output
+subdirectory by default:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.run_experiments --games 1000 --module bamboo_grove
+```
+
 Available difficulties are `easiest`, `easy`, `medium`, `hard`, and `hardest`.
 Log files are named `gamelog_{difficulty_id}_difficulty_{unique_id}.log`
 (difficulty IDs 0-4 in the order listed above). Each log also records the
