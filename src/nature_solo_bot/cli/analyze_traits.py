@@ -38,7 +38,18 @@ def _write_food_csv(
     writer,
     counts: dict[str, dict[int, TraitRoundFoodStats]],
 ) -> None:
-    writer.writerow(("trait", "round", "species_count", "total_food", "average_food"))
+    writer.writerow(
+        (
+            "trait",
+            "round",
+            "species_count",
+            "total_food",
+            "plant_food",
+            "meat_food",
+            "bamboo_food",
+            "average_food",
+        )
+    )
     for trait, rounds in counts.items():
         for round_number, stats in rounds.items():
             writer.writerow(
@@ -47,6 +58,9 @@ def _write_food_csv(
                     round_number,
                     stats.species_count,
                     stats.total_food,
+                    stats.total_plant_food,
+                    stats.total_meat_food,
+                    stats.total_bamboo_food,
                     f"{stats.average_food:.2f}",
                 )
             )
@@ -63,6 +77,9 @@ def _write_combination_csv(
             "times_extinct",
             "extinction_rate",
             "total_food",
+            "plant_food",
+            "meat_food",
+            "bamboo_food",
             "average_food_per_species_round",
             "total_population_at_start_of_feeding",
             "total_lost_population",
@@ -78,6 +95,9 @@ def _write_combination_csv(
                 stats.times_extinct,
                 f"{stats.extinction_rate:.2%}",
                 stats.total_food,
+                stats.total_plant_food,
+                stats.total_meat_food,
+                stats.total_bamboo_food,
                 f"{stats.average_food_per_round:.2f}",
                 stats.total_population_at_start_of_feeding,
                 stats.total_lost_population,
@@ -97,6 +117,9 @@ def _write_solo_species_csv(
             "times_extinct",
             "extinction_rate",
             "total_food",
+            "plant_food",
+            "meat_food",
+            "bamboo_food",
             "average_food_per_species_round",
             "total_population_at_start_of_feeding",
             "total_lost_population",
@@ -111,6 +134,9 @@ def _write_solo_species_csv(
                 stats.times_extinct,
                 f"{stats.extinction_rate:.2%}",
                 stats.total_food,
+                stats.total_plant_food,
+                stats.total_meat_food,
+                stats.total_bamboo_food,
                 f"{stats.average_food_per_round:.2f}",
                 stats.total_population_at_start_of_feeding,
                 stats.total_lost_population,
@@ -128,12 +154,17 @@ def _print_assignment_counts(counts: dict[str, TraitAssignmentCounts]) -> None:
 def _print_food_counts(
     counts: dict[str, dict[int, TraitRoundFoodStats]],
 ) -> None:
-    print("Trait | Round | Species with trait | Total food | Average food")
+    print(
+        "Trait | Round | Species with trait | Total food | Plant food | Meat food | "
+        "Bamboo food | Average food"
+    )
     for trait, rounds in counts.items():
         for round_number, stats in rounds.items():
             print(
                 f"{trait} | {round_number} | {stats.species_count} | "
-                f"{stats.total_food} | {stats.average_food:.2f}"
+                f"{stats.total_food} | {stats.total_plant_food} | "
+                f"{stats.total_meat_food} | {stats.total_bamboo_food} | "
+                f"{stats.average_food:.2f}"
             )
 
 
@@ -142,13 +173,16 @@ def _print_combination_counts(
 ) -> None:
     print(
         "Trait combination | Species-rounds present | Extinctions | Total food | "
-        "Average food/species-round | Starting population | Population lost"
+        "Plant food | Meat food | Bamboo food | Average food/species-round | "
+        "Starting population | Population lost"
     )
     for combination, stats in counts.items():
         combination_name = "No traits" if not combination else " + ".join(combination)
         print(
             f"{combination_name} | {stats.species_rounds_present} | "
             f"{stats.times_extinct} | {stats.total_food} | "
+            f"{stats.total_plant_food} | {stats.total_meat_food} | "
+            f"{stats.total_bamboo_food} | "
             f"{stats.average_food_per_round:.2f} | "
             f"{stats.total_population_at_start_of_feeding} | "
             f"{stats.total_lost_population} | "
@@ -159,12 +193,15 @@ def _print_combination_counts(
 def _print_solo_species_counts(counts: dict[str, SoloSpeciesStats]) -> None:
     print(
         "Solo species | Species-rounds present | Extinctions | Total food | "
-        "Average food/species-round | Starting population | Population lost"
+        "Plant food | Meat food | Bamboo food | Average food/species-round | "
+        "Starting population | Population lost"
     )
     for solo_species, stats in counts.items():
         print(
             f"{solo_species} | {stats.species_rounds_present} | "
             f"{stats.times_extinct} | {stats.total_food} | "
+            f"{stats.total_plant_food} | {stats.total_meat_food} | "
+            f"{stats.total_bamboo_food} | "
             f"{stats.average_food_per_round:.2f} | "
             f"{stats.total_population_at_start_of_feeding} | "
             f"{stats.total_lost_population} | "

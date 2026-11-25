@@ -89,6 +89,27 @@ class BatchRunnerTest(unittest.TestCase):
         self.assertTrue(parsed_combinations)
         self.assertTrue(parsed_species)
 
+    def test_bamboo_grove_log_records_bamboo_state_and_deck_origin(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_1_bamboo.log"
+            engine = GameEngine(
+                seed=1,
+                difficulty=Difficulty.EASY,
+                modules=["bamboo_grove"],
+            )
+            GameLogger().run_game(engine, log_path, game_number=1)
+            log_text = log_path.read_text(encoding="utf-8")
+            parsed_food = TraitAssignmentParser().parse_food_by_trait(log_path.parent)
+
+        self.assertIn("bamboo added per round:", log_text)
+        self.assertIn("Bamboo Grove deck:", log_text)
+        self.assertIn("watering hole: 0 plant,", log_text)
+        self.assertIn("(Bamboo Grove)", log_text)
+        self.assertTrue(parsed_food)
+        self.assertTrue(
+            any(stats.total_bamboo_food > 0 for rounds in parsed_food.values() for stats in rounds.values())
+        )
+
     def test_constructor_rejects_nonpositive_game_count(self):
         with self.assertRaisesRegex(ValueError, "game_count"):
             BatchRunner(game_count=0)

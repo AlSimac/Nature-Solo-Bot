@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from unittest.mock import patch
 
-from ..const import BAMBOO, MEAT, PLANT
+from ..const import BAMBOO, BAMBOO_GROVE, MEAT, NATURE, PLANT
 from ..engine.action_applier import ActionApplier
 from ..engine.game_engine import GameEngine
 from ..game.model.player import Player
@@ -13,6 +13,8 @@ from ..game.model.state import GameState
 from ..game.model.trait_card import TraitCard
 from ..game.model.trait_cards import (
     AVID_FORAGER,
+    LONG_DIGESTION,
+    MONOPHAGOUS,
     OPPORTUNISTIC,
     SCAVENGING,
     SOCIAL,
@@ -66,7 +68,25 @@ class GameLogger:
             details.append(str(food_value))
         if symbol is not None:
             details.append(symbol.value)
-        return f"{name}[{'/'.join(details)}]" if details else str(name)
+        card_description = f"{name}[{'/'.join(details)}]" if details else str(name)
+        if getattr(card, "deck", NATURE) == BAMBOO_GROVE:
+            return f"{card_description} (Bamboo Grove)"
+        return card_description
+
+    @staticmethod
+    def discard_pile_name(state: GameState, card: TraitCard) -> str | None:
+        if state.nature_discard is not None and card in state.nature_discard:
+            return "Nature discard"
+        for module, module_deck in state.module_decks.items():
+            if card in module_deck.discard:
+                return f"{module.replace('_', ' ').title()} discard"
+        return None
+
+    def watering_hole_description(self) -> str:
+        return (
+            f"{self.state.watering_hole_plant} plant, "
+            f"{self.state.watering_hole_bamboo} bamboo"
+        )
 
     def species_description(self, species: Species) -> str:
         traits = ", ".join(card.trait.name for card in species.trait_cards) or "none"
@@ -101,24 +121,32 @@ class GameLogger:
                 )
                 return
             if species.size != old_size:
+                discard_pile_name = self.discard_pile_name(state, card)
+                if discard_pile_name is None:
+                    raise RuntimeError("Adaptation increase card was not found in a discard pile.")
                 self.write(
                     f"  {player.name}: {self.card_name(card)} -> "
                     f"{self.species_id(species)} size {old_size} to {species.size}; "
-                    "card discarded to the Nature discard"
+                    f"card discarded to the {discard_pile_name}"
                 )
                 return
             if species.population != old_population:
+                discard_pile_name = self.discard_pile_name(state, card)
+                if discard_pile_name is None:
+                    raise RuntimeError("Adaptation increase card was not found in a discard pile.")
                 self.write(
                     f"  {player.name}: {self.card_name(card)} -> "
                     f"{self.species_id(species)} population "
                     f"{old_population} to {species.population}; "
-                    "card discarded to the Nature discard"
+                    f"card discarded to the {discard_pile_name}"
                 )
                 return
 
-        if state.nature_discard is not None and card in state.nature_discard:
+        discard_pile_name = self.discard_pile_name(state, card)
+        if discard_pile_name is not None:
             self.write(
-                f"  {player.name}: {self.card_name(card)} -> discarded to the Nature discard"
+                f"  {player.name}: {self.card_name(card)} -> "
+                f"discarded to the {discard_pile_name}"
             )
         else:
             self.write(f"  {player.name}: {self.card_name(card)} -> returned to hand")
@@ -161,7 +189,7 @@ class GameLogger:
         self.write(f"\nROUND {self.state.current_round} - PREPARATION")
         self.write(
             f"First player: {self.state.players[self.state.first_player_index].name}; "
-            f"watering hole: {self.state.watering_hole_plant}"
+            f"watering hole: {self.watering_hole_description()}"
         )
         for player in self.state.players:
             self.player_board(player)
@@ -280,16 +308,20 @@ class GameLogger:
         discarded_cards = [card for card in previous_hand if id(card) not in remaining_ids]
         food_name = {PLANT: "plant", MEAT: "meat", BAMBOO: "bamboo"}[food_type]
         for card in discarded_cards:
+            discard_pile_name = self.discard_pile_name(state, card)
+            if discard_pile_name is None:
+                raise RuntimeError("Watering-hole discard card was not found in a discard pile.")
             self._record_feeding_action(
-                f"discarded {self.card_name(card)} (+{card.food_value} {food_name})"
+                f"discarded {self.card_name(card)} (+{card.food_value} {food_name}; "
+                f"{discard_pile_name})"
             )
 
     def _trace_feeding(self) -> None:
         assert self._original_feeding is not None
         self.write(f"\nROUND {self.state.current_round} - FEEDING")
-        self.write(f"Watering hole before feeding: {self.state.watering_hole_plant}")
+        self.write(f"Watering hole before feeding: {self.watering_hole_description()}")
         self._original_feeding()
-        self.write(f"Watering hole after feeding: {self.state.watering_hole_plant}")
+        self.write(f"Watering hole after feeding: {self.watering_hole_description()}")
         for player in self.state.players:
             self.write(f"  {player.name} after feeding:")
             for species in player.species:
@@ -306,22 +338,43 @@ class GameLogger:
             for player in self.state.players
             for species in player.species
         }
-        food_scores = {
-            player: sum(species.total_food for species in player.species)
+        before_food = {
+            species: species.eaten_food.copy()
             for player in self.state.players
+            for species in player.species
         }
         self.write(f"\nROUND {self.state.current_round} - SCORING")
         self._original_scoring()
         for player in self.state.players:
             points_gained = player.score - before_scores[player]
-            end_game_bonus = points_gained - food_scores[player]
+            end_game_bonus = (
+                2 * len(player.species)
+                if self.state.current_round == self.state.total_rounds
+                else 0
+            )
+            food_points = points_gained - end_game_bonus
             self.write(
-                f"  {player.name} scored {food_scores[player]} food points "
+                f"  {player.name} scored {food_points} food points "
                 f"(total points gained: {points_gained}"
                 + (f", surviving-species bonus: {end_game_bonus}" if end_game_bonus else "")
                 + f"); score={player.score}"
             )
             for species in player.species:
+                bamboo_food = before_food[species][BAMBOO]
+                if bamboo_food:
+                    trait_ids = {
+                        card.trait.effect_id for card in before_species[species][1]
+                    }
+                    if MONOPHAGOUS.effect_id in trait_ids:
+                        bamboo_outcome = "scored"
+                    elif LONG_DIGESTION.effect_id in trait_ids:
+                        bamboo_outcome = "stored"
+                    else:
+                        bamboo_outcome = "discarded"
+                    self.write(
+                        f"    {self.species_id(species)} bamboo food: "
+                        f"{bamboo_food} {bamboo_outcome}"
+                    )
                 self._write_scoring_changes(species, before_species[species])
 
     def _write_scoring_changes(
@@ -410,7 +463,9 @@ class GameLogger:
         self.write(f"First player: {self.state.players[self.state.first_player_index].name}")
         self.write(
             f"Watering hole: {self.state.watering_hole_plant}; "
-            f"plant added per round: {self.state.plant_per_round}"
+            f"plant added per round: {self.state.plant_per_round}; "
+            f"bamboo: {self.state.watering_hole_bamboo}; "
+            f"bamboo added per round: {getattr(self.state, 'bamboo_per_round', 0)}"
         )
         if self.state.food_card is not None:
             self.write(f"Setup food card: {self.card_name(self.state.food_card)}")
@@ -418,6 +473,12 @@ class GameLogger:
             f"Nature deck: {len(self.state.nature_deck)} cards; "
             f"Nature discard: {len(self.state.nature_discard)} cards"
         )
+        for module, module_deck in self.state.module_decks.items():
+            module_name = module.replace("_", " ").title()
+            self.write(
+                f"{module_name} deck: {len(module_deck.deck)} cards; "
+                f"{module_name} discard: {len(module_deck.discard)} cards"
+            )
         nature_cards = [*self.state.nature_deck, *self.state.nature_discard]
         if self.state.food_card is not None:
             nature_cards.append(self.state.food_card)

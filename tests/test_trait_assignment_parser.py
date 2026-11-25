@@ -264,12 +264,45 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(assignments["Fast"].winner, 1)
         self.assertEqual(food_by_trait["Fast"][1].total_food, 3)
         self.assertEqual(combinations[("Fast",)].total_food, 3)
+        self.assertEqual(combinations[("Fast",)].total_bamboo_food, 1)
         self.assertEqual(combinations[("Fast",)].total_lost_population, 0)
         self.assertEqual(combinations[()].times_extinct, 1)
         self.assertEqual(combinations[()].total_food, 1)
+        self.assertEqual(combinations[()].total_meat_food, 1)
         self.assertEqual(solo_species["Evader"].total_food, 3)
+        self.assertEqual(solo_species["Evader"].total_bamboo_food, 1)
         self.assertEqual(solo_species["Glutton"].times_extinct, 1)
         self.assertEqual(solo_species["Glutton"].total_lost_population, 2)
+
+    def test_parses_bamboo_food_from_compact_feeding_summaries(self):
+        log_lines = (
+            "Players: Rani, Radwin",
+            "ROUND 1 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "ROUND 1 - FEEDING",
+            "Watering hole after feeding: 0 plant, 2 bamboo",
+            "  Rani: S1 Evader ate 3 food (1 plant, 0 meat, 2 bamboo); "
+            "population 3 to 2",
+            "ROUND 1 - SCORING",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_bamboo.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+            parser = TraitAssignmentParser()
+
+            food_by_trait = parser.parse_food_by_trait(temporary_directory)
+            combinations = parser.parse_trait_combinations(temporary_directory)
+            solo_species = parser.parse_solo_species(temporary_directory)
+
+        self.assertEqual(food_by_trait["Fast"][1].total_food, 3)
+        self.assertEqual(food_by_trait["Fast"][1].total_plant_food, 1)
+        self.assertEqual(food_by_trait["Fast"][1].total_meat_food, 0)
+        self.assertEqual(food_by_trait["Fast"][1].total_bamboo_food, 2)
+        self.assertEqual(combinations[("Fast",)].total_bamboo_food, 2)
+        self.assertEqual(solo_species["Evader"].total_bamboo_food, 2)
 
 
 if __name__ == "__main__":

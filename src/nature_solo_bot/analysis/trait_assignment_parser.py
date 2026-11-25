@@ -15,11 +15,13 @@ _SOLO_SPECIES_BOARD_PATTERN = re.compile(
     r"(?P<population>\d+), traits=\["
 )
 _FOOD_EATEN_PATTERN = re.compile(
-    r"\b(?P<species>S\d+) ate (?P<amount>\d+) (?:plant|meat|bamboo) food\b"
+    r"\b(?P<species>S\d+) ate (?P<amount>\d+) "
+    r"(?P<food_type>plant|meat|bamboo) food\b"
 )
 _FEEDING_SUMMARY_PATTERN = re.compile(
     r"^\s+[^:]+:\s+(?P<species>S\d+) (?P<solo_species>.+?) ate "
-    r"(?P<amount>\d+) food \(\d+ plant, \d+ meat\); population "
+    r"(?P<amount>\d+) food \((?P<plant>\d+) plant, (?P<meat>\d+) meat"
+    r"(?:, (?P<bamboo>\d+) bamboo)?\); population "
     r"\d+ to (?P<population>\d+|extinct)$"
 )
 
@@ -35,10 +37,13 @@ class TraitAssignmentCounts:
 
 @dataclass(slots=True)
 class TraitRoundFoodStats:
-    """Species count and cumulative food for one trait in one round."""
+    """Species count and cumulative food types for one trait in one round."""
 
     species_count: int = 0
     total_food: int = 0
+    total_plant_food: int = 0
+    total_meat_food: int = 0
+    total_bamboo_food: int = 0
 
     @property
     def average_food(self) -> float:
@@ -55,6 +60,9 @@ class TraitCombinationStats:
     species_rounds_present: int = 0
     times_extinct: int = 0
     total_food: int = 0
+    total_plant_food: int = 0
+    total_meat_food: int = 0
+    total_bamboo_food: int = 0
     total_population_at_start_of_feeding: int = 0
     total_lost_population: int = 0
 
@@ -89,6 +97,9 @@ class SoloSpeciesStats:
     species_rounds_present: int = 0
     times_extinct: int = 0
     total_food: int = 0
+    total_plant_food: int = 0
+    total_meat_food: int = 0
+    total_bamboo_food: int = 0
     total_population_at_start_of_feeding: int = 0
     total_lost_population: int = 0
 
@@ -114,6 +125,20 @@ class SoloSpeciesStats:
             return 0.0
 
         return self.times_extinct / self.species_rounds_present
+
+
+@dataclass(slots=True)
+class _FoodTotals:
+    plant: int = 0
+    meat: int = 0
+    bamboo: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.plant + self.meat + self.bamboo
+
+    def add(self, food_type: str, amount: int) -> None:
+        setattr(self, food_type, getattr(self, food_type) + amount)
 
 
 class TraitAssignmentParser:
@@ -147,8 +172,8 @@ class TraitAssignmentParser:
         """Aggregate trait-bearing species and their food eaten, by round.
 
         A species qualifies if it has one or more copies of a trait on its
-        board at the end of adaptation. Food is summed across that species'
-        plant and meat food actions in the same round. Qualifying species that
+        board at the end of adaptation.         Food is summed across that species' plant, meat, and bamboo food actions
+        in the same round. Qualifying species that
         eat no food are included in the average with a food total of zero.
         """
         directory = Path(folder)
@@ -296,7 +321,11 @@ class TraitAssignmentParser:
                 for trait in trait_names:
                     stats = totals[trait][round_number]
                     stats.species_count += 1
-                    stats.total_food += food_by_species[species_id]
+                    species_food = food_by_species[species_id]
+                    stats.total_food += species_food.total
+                    stats.total_plant_food += species_food.plant
+                    stats.total_meat_food += species_food.meat
+                    stats.total_bamboo_food += species_food.bamboo
 
         if not round_numbers:
             raise ValueError(f"No round data found in {log_path}")
@@ -338,15 +367,21 @@ class TraitAssignmentParser:
         return traits_by_species
 
     @staticmethod
-    def _read_food_totals(lines: list[str]) -> defaultdict[str, int]:
-        food_by_species: defaultdict[str, int] = defaultdict(int)
+    def _read_food_totals(lines: list[str]) -> defaultdict[str, _FoodTotals]:
+        food_by_species: defaultdict[str, _FoodTotals] = defaultdict(_FoodTotals)
         for line in lines:
             match = _FEEDING_SUMMARY_PATTERN.match(line)
             if match is not None:
-                food_by_species[match.group("species")] += int(match.group("amount"))
+                food_totals = food_by_species[match.group("species")]
+                food_totals.plant += int(match.group("plant"))
+                food_totals.meat += int(match.group("meat"))
+                food_totals.bamboo += int(match.group("bamboo") or 0)
                 continue
             for match in _FOOD_EATEN_PATTERN.finditer(line):
-                food_by_species[match.group("species")] += int(match.group("amount"))
+                food_by_species[match.group("species")].add(
+                    match.group("food_type"),
+                    int(match.group("amount")),
+                )
         return food_by_species
 
     @staticmethod
@@ -417,7 +452,11 @@ class TraitAssignmentParser:
                 surviving_population = surviving_state[1] if surviving_state is not None else 0
                 stats = totals[combination]
                 stats.species_rounds_present += 1
-                stats.total_food += food_by_species[species_id]
+                species_food = food_by_species[species_id]
+                stats.total_food += species_food.total
+                stats.total_plant_food += species_food.plant
+                stats.total_meat_food += species_food.meat
+                stats.total_bamboo_food += species_food.bamboo
                 stats.total_population_at_start_of_feeding += starting_population
                 stats.total_lost_population += max(
                     0,
@@ -490,7 +529,11 @@ class TraitAssignmentParser:
                 surviving_population = surviving_state[1] if surviving_state else 0
                 stats = totals[solo_species]
                 stats.species_rounds_present += 1
-                stats.total_food += food_by_species[species_id]
+                species_food = food_by_species[species_id]
+                stats.total_food += species_food.total
+                stats.total_plant_food += species_food.plant
+                stats.total_meat_food += species_food.meat
+                stats.total_bamboo_food += species_food.bamboo
                 stats.total_population_at_start_of_feeding += starting_population
                 stats.total_lost_population += max(
                     0,

@@ -77,6 +77,8 @@ Add `--output output\core\hardest\trait_assignment_counts.csv` to save the
 summary as CSV. Only successful trait assignments during adaptation are
 counted; a trait appearing on a species board or triggering during feeding
 does not count as a new assignment.
+Game logs also record Bamboo Grove deck/discard counts, bamboo in the watering
+hole, Bamboo Grove card origins, and bamboo scoring outcomes.
 
 To see, for every trait and round, how many species carried it and how much
 food those species ate on average, add `--food-by-trait`:
@@ -87,8 +89,9 @@ food those species ate on average, add `--food-by-trait`:
 
 A species qualifies once per trait per round even if it has multiple copies.
 The trait is read from the post-adaptation board, and food includes both plant
-and meat food eaten during that round. Qualifying species that ate no food
-remain in the average as zero-food observations.
+and meat food as well as bamboo eaten during that round. The report breaks
+food totals down by type. Qualifying species that ate no food remain in the
+average as zero-food observations.
 
 To aggregate exact trait combinations instead, run:
 
@@ -100,12 +103,13 @@ Each species-round with at least one trait contributes one observation for its
 exact trait combination, so the presence count is species-round appearances,
 not unique game-rounds. Duplicate copies are preserved (for example,
 `Fast + Fast` differs from `Fast`). The CSV reports species-round appearances,
-extinctions during feeding, total and average food eaten per species-round,
-starting population at the start of feeding, and population lost by the end of
-feeding. Extinct species count as losing their full starting population.
-Species with no traits are included under `No traits`. Game logs also report
-how many Avid Forager cards were present in the Nature deck, including the
-setup food card, to make Promo deck contents easy to verify.
+extinctions during feeding, total food by type, average food eaten per
+species-round, starting population at the start of feeding, and population
+lost by the end of feeding. Extinct species count as losing their full
+starting population. Species with no traits are included under `No traits`.
+Game logs also report how many Avid Forager cards were present in the Nature
+deck, including the setup food card, to make Promo deck contents easy to
+verify.
 
 To aggregate the same metrics by Solo species card instead of by trait
 combination, run:
@@ -116,5 +120,5 @@ combination, run:
 
 Every species-round contributes one observation to its Solo species card's
 totals. The report includes its number of species-round appearances,
-extinctions during feeding, total and average food eaten per species-round,
-starting population, and population lost by the end of feeding.
+extinctions during feeding, total food by type, average food eaten per
+species-round, starting population, and population lost by the end of feeding.
