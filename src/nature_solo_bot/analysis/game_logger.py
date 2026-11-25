@@ -399,7 +399,11 @@ class GameLogger:
             f"round_one_population={self.state.difficulty.round_one_population}, "
             f"cards_to_draw={self.state.difficulty.cards_to_draw}"
         )
-        self.write(f"Promo cards: {engine.promo}")
+        self.write(f"Nature promo cards: {engine.nature_promo}")
+        self.write(
+            "Module promo cards: "
+            + (", ".join(sorted(engine.promo_modules)) if engine.promo_modules else "none")
+        )
         self.write(f"Modules: {', '.join(engine.modules) if engine.modules else 'none'}")
         self.write(f"Players: {', '.join(player.name for player in self.state.players)}")
         self.write(f"Rounds: {self.state.total_rounds}")

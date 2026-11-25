@@ -5,15 +5,50 @@ from pathlib import Path
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
+from src.nature_solo_bot.game.model.modules import MODULE_DEFINITIONS
 from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER
 
 
 class PromoGamesTest(unittest.TestCase):
+    def test_module_and_nature_promos_can_be_selected_independently(self):
+        bamboo_promo_traits = MODULE_DEFINITIONS["bamboo_grove"].promo_traits
+
+        module_promo_state = GameEngine(
+            seed=1,
+            modules=["bamboo_grove"],
+            promo_modules=["bamboo_grove"],
+            nature_promo=False,
+        ).setup_game()
+        nature_promo_state = GameEngine(
+            seed=1,
+            modules=["bamboo_grove"],
+            nature_promo=True,
+        ).setup_game()
+
+        self.assertFalse(
+            any(card.trait is AVID_FORAGER for card in module_promo_state.nature_deck)
+        )
+        self.assertTrue(
+            any(
+                card.trait in bamboo_promo_traits
+                for card in module_promo_state.module_decks["bamboo_grove"].deck
+            )
+        )
+        self.assertTrue(
+            any(card.trait is AVID_FORAGER for card in nature_promo_state.nature_deck)
+        )
+        self.assertFalse(
+            any(
+                card.trait in bamboo_promo_traits
+                for card in nature_promo_state.module_decks["bamboo_grove"].deck
+            )
+        )
+
     def test_five_promo_games_write_only_final_scores(self):
         score_lines = []
 
         for seed in range(1, 6):
-            engine = GameEngine(seed=seed, promo=True)
+            engine = GameEngine(seed=seed, nature_promo=True)
             state = engine.setup_game()
             self.assertTrue(
                 any(card.trait is AVID_FORAGER for card in state.nature_deck)

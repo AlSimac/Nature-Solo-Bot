@@ -44,9 +44,16 @@ class RunExperiments:
             help="one or more game modules to include",
         )
         parser.add_argument(
-            "--promo",
+            "--nature-promo",
             action="store_true",
-            help="include Promo cards",
+            help="include Promo cards in the Nature deck",
+        )
+        parser.add_argument(
+            "--module-promo",
+            nargs="+",
+            choices=tuple(MODULE_DEFINITIONS),
+            metavar="MODULE",
+            help="include Promo cards for one or more selected modules",
         )
         parser.add_argument(
             "--output-dir",
@@ -55,6 +62,10 @@ class RunExperiments:
         options = parser.parse_args(arguments)
         if options.games <= 0:
             parser.error("--games must be greater than zero")
+        if options.module_promo and not options.module:
+            parser.error("--module-promo requires --module")
+        if options.module_promo and not set(options.module_promo).issubset(options.module):
+            parser.error("--module-promo modules must also be selected with --module")
 
         difficulties = {
             "easiest": Difficulty.EASIEST,
@@ -67,7 +78,7 @@ class RunExperiments:
             Path("output")
             / "Nature"
             / options.difficulty
-            / ("promo" if options.promo else "core")
+            / ("promo" if options.nature_promo or options.module_promo else "core")
         )
         if options.module:
             default_output_path /= "+".join(options.module)
@@ -77,7 +88,8 @@ class RunExperiments:
             start_seed=options.start_seed,
             difficulty=difficulties[options.difficulty],
             modules=options.module,
-            promo=options.promo,
+            promo_modules=options.module_promo,
+            nature_promo=options.nature_promo,
         ).run(output_directory)
         print(f"Saved {len(log_paths)} game logs to {output_directory}")
         return 0
@@ -88,7 +100,7 @@ class RunExperiments:
         for difficulty in Difficulty:
             difficulty_name = difficulty.name.lower()
 
-            for promo in (False, True):
+            for nature_promo in (False, True):
                 arguments = [
                     "--difficulty",
                     difficulty_name,
@@ -97,12 +109,12 @@ class RunExperiments:
                         Path("output")
                         / "Nature"
                         / difficulty_name
-                        / ("promo" if promo else "core")
+                        / ("promo" if nature_promo else "core")
                     ),
                 ]
 
-                if promo:
-                    arguments.append("--promo")
+                if nature_promo:
+                    arguments.append("--nature-promo")
 
                 exit_code = RunExperiments.run(arguments)
 

@@ -1,6 +1,7 @@
 """Game engine stub."""
 
 import random
+from collections.abc import Collection
 from typing import TypeVar
 
 from ..const import BAMBOO_GROVE
@@ -31,12 +32,21 @@ class GameEngine:
         seed: int | None = None,
         difficulty: Difficulty = Difficulty.MEDIUM,
         modules: list[str] | None = None,
-        promo: bool = False,
+        *,
+        promo_modules: Collection[str] | None = None,
+        nature_promo: bool = False,
     ):
         self.seed = seed
         self.difficulty = difficulty
         self.modules = list(modules or [])
-        self.promo = promo
+        self.promo_modules = set(promo_modules or ())
+        unsupported_promos = self.promo_modules.difference(self.modules)
+        if unsupported_promos:
+            raise ValueError(
+                "Promo cards requested for modules not in the game: "
+                + ", ".join(sorted(unsupported_promos))
+            )
+        self.nature_promo = nature_promo
         self.rng = random.Random(seed)
         self.state: GameState | None = None
 
@@ -48,7 +58,12 @@ class GameEngine:
         state.players = Player.init_two_players()
         state.active_player_index = 1
         # Decks preparation
-        GameSetup.shuffle_all_decks(state, self.rng, self.promo)
+        GameSetup.shuffle_all_decks(
+            state,
+            self.rng,
+            promo_modules=self.promo_modules,
+            nature_promo=self.nature_promo,
+        )
         self.state = state
         # Drawing a card from the deck for the watering hole plant
         state.food_card = self.draw_card(state.nature_deck, state.nature_discard)

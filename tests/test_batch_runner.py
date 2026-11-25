@@ -21,7 +21,7 @@ class BatchRunnerTest(unittest.TestCase):
                 game_count=3,
                 start_seed=10,
                 difficulty=Difficulty.EASY,
-                promo=True,
+                nature_promo=True,
             )
 
             log_paths = runner.run(output_directory)
@@ -37,7 +37,8 @@ class BatchRunnerTest(unittest.TestCase):
             )
             self.assertIn(f"Game number: {index}", log_text)
             self.assertIn(f"Seed: {index + 9}", log_text)
-            self.assertIn("Promo cards: True", log_text)
+            self.assertIn("Nature promo cards: True", log_text)
+            self.assertIn("Module promo cards: none", log_text)
             self.assertIn(
                 "Avid Forager cards in Nature deck (including setup food card): 11",
                 log_text,
@@ -104,7 +105,7 @@ class BatchRunnerTest(unittest.TestCase):
                     "20",
                     "--difficulty",
                     "easy",
-                    "--promo",
+                    "--nature-promo",
                     "--output-dir",
                     str(output_directory),
                 ]
@@ -116,7 +117,9 @@ class BatchRunnerTest(unittest.TestCase):
         self.assertEqual(len(log_paths), 2)
         self.assertTrue(any("Seed: 20" in content for content in contents))
         self.assertTrue(any("Seed: 21" in content for content in contents))
-        self.assertTrue(all("Promo cards: True" in content for content in contents))
+        self.assertTrue(
+            all("Nature promo cards: True" in content for content in contents)
+        )
         self.assertTrue(
             all(
                 "Avid Forager cards in Nature deck "
@@ -136,7 +139,15 @@ class BatchRunnerTest(unittest.TestCase):
             ) as runner:
                 runner.return_value.run.return_value = []
                 exit_code = RunExperiments.run(
-                    ["--module", "bamboo_grove", extra_module, "--games", "1"]
+                    [
+                        "--module",
+                        "bamboo_grove",
+                        extra_module,
+                        "--module-promo",
+                        "bamboo_grove",
+                        "--games",
+                        "1",
+                    ]
                 )
 
         self.assertEqual(exit_code, 0)
@@ -144,8 +155,15 @@ class BatchRunnerTest(unittest.TestCase):
             runner.call_args.kwargs["modules"],
             ["bamboo_grove", extra_module],
         )
+        self.assertEqual(runner.call_args.kwargs["promo_modules"], ["bamboo_grove"])
         runner.return_value.run.assert_called_once_with(
-            str(Path("output") / "Nature" / "medium" / "core" / "bamboo_grove+test_module")
+            str(
+                Path("output")
+                / "Nature"
+                / "medium"
+                / "promo"
+                / "bamboo_grove+test_module"
+            )
         )
 
     def test_batch_runner_passes_modules_to_each_engine(self):
@@ -155,6 +173,8 @@ class BatchRunnerTest(unittest.TestCase):
                     BatchRunner(
                         game_count=1,
                         modules=["bamboo_grove"],
+                        promo_modules=["bamboo_grove"],
+                        nature_promo=False,
                     ).run(temporary_directory)
 
         engine.assert_called_once()
@@ -162,6 +182,11 @@ class BatchRunnerTest(unittest.TestCase):
             engine.call_args.kwargs["modules"],
             ["bamboo_grove"],
         )
+        self.assertEqual(
+            engine.call_args.kwargs["promo_modules"],
+            {"bamboo_grove"},
+        )
+        self.assertFalse(engine.call_args.kwargs["nature_promo"])
 
     def test_main_uses_supplied_cli_options_instead_of_run_loop(self):
         with patch(
@@ -194,7 +219,7 @@ class BatchRunnerTest(unittest.TestCase):
             self.assertEqual(output_path.parts[2], difficulty)
             self.assertEqual(
                 output_path.parts[3],
-                "promo" if "--promo" in args else "core",
+                "promo" if "--nature-promo" in args else "core",
             )
 
 

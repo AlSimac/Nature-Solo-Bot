@@ -1,5 +1,6 @@
 """Run reproducible batches of games and save a detailed log for each game."""
 
+from collections.abc import Collection
 from pathlib import Path
 from uuid import uuid4
 
@@ -26,7 +27,8 @@ class BatchRunner:
         start_seed: int = 1,
         difficulty: Difficulty = Difficulty.MEDIUM,
         modules: list[str] | None = None,
-        promo: bool = False,
+        promo_modules: Collection[str] | None = None,
+        nature_promo: bool = False,
     ) -> None:
         if game_count <= 0:
             raise ValueError("game_count must be greater than zero.")
@@ -35,7 +37,14 @@ class BatchRunner:
         self.start_seed = start_seed
         self.difficulty = difficulty
         self.modules = list(modules or [])
-        self.promo = promo
+        self.promo_modules = set(promo_modules or ())
+        unsupported_promos = self.promo_modules.difference(self.modules)
+        if unsupported_promos:
+            raise ValueError(
+                "Promo cards requested for modules not in the game: "
+                + ", ".join(sorted(unsupported_promos))
+            )
+        self.nature_promo = nature_promo
 
     def run(
         self,
@@ -55,10 +64,11 @@ class BatchRunner:
                 seed=seed,
                 difficulty=self.difficulty,
                 modules=self.modules,
-                promo=self.promo,
+                promo_modules=self.promo_modules,
+                nature_promo=self.nature_promo,
             )
             log_path = directory / (
-                f"gamelog_{difficulty_label}_{seed}.log"
+                f"gamelog_{difficulty_label}_difficulty_{uuid4().hex}.log"
             )
             GameLogger().run_game(
                 engine,

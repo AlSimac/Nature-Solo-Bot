@@ -17,6 +17,17 @@ For questions concerning the original game, please consult its official publishe
 
 ## Running game experiments
 
+To configure a batch with a desktop window, run:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.game_setup_ui
+```
+
+Select the game count and difficulty, then choose any modules and their Promo
+cards. Nature Promo cards can be enabled separately. The game logs are saved
+under `output\Nature`.
+
 Run this command from the repository root to simulate 1,000 games with the
 medium difficulty and no Promo cards. It writes one detailed `.log` file per
 game in the `output` directory, including the seed, settings, phase actions,
@@ -29,7 +40,13 @@ trait triggers, round scores, and winner:
 You can change the run settings and output directory with options:
 
 ```powershell
-.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.run_experiments --games 1000 --start-seed 1 --difficulty hard --promo --output-dir output
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.run_experiments --games 1000 --start-seed 1 --difficulty hard --nature-promo --output-dir output
+```
+
+Use `--module-promo` to include Promo cards for selected modules, for example:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.nature_solo_bot.cli.run_experiments --games 1000 --module bamboo_grove --module-promo bamboo_grove
 ```
 
 Select one or more game modules with `--module`. The currently supported
