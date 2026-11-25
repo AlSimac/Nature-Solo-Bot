@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 
 from nature_solo_bot.const import BAMBOO_GROVE, BAMBOO_GROVE_FOOD_VALUES
-from nature_solo_bot.game.model.nature_symbols import BAMBOO_GROVE_SYMBOL_BY_TRAIT_AND_FOOD
 from nature_solo_bot.game.model.solo_cards import BAMBOO_GROVE_SOLO_CARDS
 from nature_solo_bot.game.model.solo_species import SoloSpecies
 
@@ -40,6 +39,5 @@ MODULE_DEFINITIONS: dict[str, ModuleDefinition] = {
         promo_traits=(LONG_DIGESTION, TERRITORIAL),
         solo_deck=BAMBOO_GROVE_SOLO_CARDS,
         food_values=BAMBOO_GROVE_FOOD_VALUES,
-        solo_symbols=BAMBOO_GROVE_SYMBOL_BY_TRAIT_AND_FOOD,
     ),
 }

@@ -129,7 +129,7 @@ class Species:
             return False
 
         self.trait_cards.remove(card)
-        card.stored_food = 0
+        card.stored_food = {PLANT: 0, MEAT: 0, BAMBOO: 0}
         return True
 
     def replace_trait_card(
@@ -148,7 +148,7 @@ class Species:
 
         card_index = self.trait_cards.index(old_card)
         self.trait_cards[card_index] = new_card
-        old_card.stored_food = 0
+        old_card.stored_food = {PLANT: 0, MEAT: 0, BAMBOO: 0}
         return True
 
     def trait_count(self, trait_id: str):

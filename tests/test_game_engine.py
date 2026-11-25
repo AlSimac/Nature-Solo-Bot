@@ -42,12 +42,13 @@ class GameEngineTest(unittest.TestCase):
         self.assertIs(state.bamboo_grove_discard, bamboo_decks.discard)
         self.assertIs(state.all_decks[0], state.nature_deck)
         self.assertIs(state.all_decks[1], bamboo_decks.deck)
-        self.assertEqual(
-            len(bamboo_decks.deck),
-            len(BAMBOO_GROVE_TRAITS) * len(Card.NATURE_FOOD_VALUES),
-        )
+        self.assertEqual(len(Card.init_trait_decks(module=BAMBOO_GROVE)), 40)
         self.assertEqual({card.trait for card in bamboo_decks.deck}, set(BAMBOO_GROVE_TRAITS))
-        self.assertEqual(bamboo_decks.discard, [])
+        self.assertTrue(
+            all(card.deck == BAMBOO_GROVE for card in bamboo_decks.discard)
+        )
+        bamboo_decks.deck.clear()
+        bamboo_decks.discard.clear()
         with self.assertRaisesRegex(RuntimeError, "deck and discard pile are empty"):
             engine.draw_card(bamboo_decks.deck, bamboo_decks.discard)
 

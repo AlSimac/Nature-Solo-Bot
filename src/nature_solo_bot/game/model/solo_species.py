@@ -1,11 +1,17 @@
 from enum import Enum
 
+from nature_solo_bot.game.model.trait import Trait
+
 from .symbol import Symbol
 
 
 class SoloEffect(str, Enum):
     PREDATOR = "predator"
     PROPAGATOR = "propagator"
+    CHI_CHI = "chi chi"
+    CHOMPS = "chomps"
+    FENG = "feng"
+    TRIM = "trim"
 
 
 class SoloSpecies:
@@ -14,6 +20,7 @@ class SoloSpecies:
     def __init__(
         self,
         name: str = "Solo Species",
+        add_trait: list[Trait] | None = None,
         effect_id: str | None = None,
         pink_symbols: list[Symbol] | None = None,
         pink_symbols_last_round: list[Symbol] | None = None,
@@ -22,6 +29,7 @@ class SoloSpecies:
     ):
         """Initialize a solo species with a name and traits."""
         self.name = name
+        self.add_trait = add_trait
         self.effect_id = effect_id
         self.pink_symbols = pink_symbols or []
         self.pink_symbols_last_round = pink_symbols_last_round or []

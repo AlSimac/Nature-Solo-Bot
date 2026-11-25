@@ -5,16 +5,16 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from nature_solo_bot.const import NATURE, NATURE_FOOD_VALUES
+from nature_solo_bot.const import BAMBOO, MEAT, NATURE, NATURE_FOOD_VALUES, PLANT
 
 from . import trait
 
 if TYPE_CHECKING:
     from nature_solo_bot.game.model.state import GameState
 from .modules import MODULE_DEFINITIONS
-from .nature_symbols import NATURE_SYMBOL_BY_TRAIT_AND_FOOD
 from .solo_cards import NATURE_SOLO_CARDS
 from .solo_species import SoloSpecies
+from .solo_symbol_matrix import card_entries_for
 from .symbol import SymbolName
 from .trait_card import TraitCard
 from .trait_cards import AVID_FORAGER, NATURE_TRAITS
@@ -32,7 +32,7 @@ class Card(TraitCard):
         trait: trait.Trait,
         solo_symbol: SymbolName,
         deck: str,
-        stored_food: int = 0,
+        stored_food={PLANT: 0, MEAT: 0, BAMBOO: 0},
     ):
         """Initialize a card with a name, food value, and trait."""
         super().__init__(trait, stored_food)
@@ -67,13 +67,17 @@ class Card(TraitCard):
             traits = list(module_definition.traits_for_deck(promo))
             food_values = module_definition.food_values
 
-        for module_trait in traits:
-            for food_value in food_values:
-                if module_definition is None:
-                    solo_symbol = NATURE_SYMBOL_BY_TRAIT_AND_FOOD[(module_trait, food_value)]
-                else:
-                    solo_symbol = module_definition.solo_symbol_for(module_trait, food_value)
+            if not food_values:
+                food_values = NATURE_FOOD_VALUES
 
+        for module_trait in traits:
+            entries = card_entries_for(
+                deck_name,
+                module_trait.name,
+                food_values,
+            )
+
+            for food_value, solo_symbol in entries:
                 cards_in_deck.append(
                     Card(
                         name=module_trait.name,

@@ -114,7 +114,7 @@ class FeedingRulesTest(unittest.TestCase):
         ):
             with self.subTest(is_monophagous=is_monophagous):
                 species = Species(solo_card=SoloSpecies(), round_created=1)
-                species.population = 2
+                species.population = 3
                 species.plant_food = 1
                 species.meat_food = 1
                 species.bamboo_food = 1
@@ -353,6 +353,25 @@ class FeedingRulesTest(unittest.TestCase):
 
         self.assertEqual(forager.plant_food, 2)
         self.assertEqual(state.watering_hole_plant, 3)
+
+    def test_root_eating_emptying_watering_hole_triggers_tusked(self):
+        player = Player(name="Foraging player")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 2
+        forager.add_trait_card(TraitCard(ROOT_EATING), max_traits=3)
+        tusked = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked.population = 2
+        tusked.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.extend([forager, tusked])
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 1
+        state.watering_hole_bamboo = 1
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(tusked.meat_food, 1)
+        self.assertEqual(state.total_watering_hole_food, 0)
 
     def test_territorial_stored_food_supports_avid_forager_bonus_feeding(self):
         player = Player(name="Foraging player")
@@ -1130,7 +1149,6 @@ class FeedingRulesTest(unittest.TestCase):
             )
 
         self.assertEqual(least_dangerous_preys, [(own_prey, 1)])
-
 
 if __name__ == "__main__":
     unittest.main()

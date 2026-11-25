@@ -55,7 +55,7 @@ class ScoringRules:
                 # BAMBOO_GROVE
                 if state.current_round == state.total_rounds:
                     active_player.score += sum(
-                        card.stored_food
+                        card.stored_food[BAMBOO]
                         for card in species.trait_cards
                         if card.trait.effect_id == LONG_DIGESTION.effect_id
                     )
@@ -88,5 +88,5 @@ class ScoringRules:
     def store_food_on_long_digestion(species: Species) -> None:
         for card in species.trait_cards:
             if card.trait.effect_id == LONG_DIGESTION.effect_id:
-                card.stored_food += species.bamboo_food
+                card.stored_food[BAMBOO] += species.bamboo_food
                 break

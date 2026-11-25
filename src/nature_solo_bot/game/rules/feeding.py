@@ -107,11 +107,19 @@ class FeedingRules:
     # BAMBOO_GROVE
     @staticmethod
     def triggering_root_eating(state, species):
-        FeedingRules._apply_root_eating(species, state.watering_hole_food)
+        FeedingRules._apply_root_eating(
+            species,
+            state.watering_hole_food,
+            (candidate for player in state.players for candidate in player.species),
+        )
 
     # BAMBOO_GROVE
     @staticmethod
-    def _apply_root_eating(species: Species, watering_hole_food: dict[str, int]) -> None:
+    def _apply_root_eating(
+        species: Species,
+        watering_hole_food: dict[str, int],
+        tusked_species: Iterable[Species] | None = None,
+    ) -> None:
         for _ in range(species.trait_count(ROOT_EATING.effect_id)):
             # Activates only if there are any plant or bamboo left in the WH
             if not any(watering_hole_food[food] > 0 for food in (PLANT, BAMBOO)):
@@ -121,6 +129,15 @@ class FeedingRules:
             if not species.is_hungry:
                 food_type = PLANT if watering_hole_food[PLANT] > 0 else BAMBOO
                 watering_hole_food[food_type] -= 1
+
+                if watering_hole_food[PLANT] == 0 and watering_hole_food[BAMBOO] == 0:
+                    FeedingRules._trigger_trait_feeding(
+                        tusked_species or (),
+                        TUSKED.effect_id,
+                        1,
+                        MEAT,
+                    )
+
                 continue
 
             # if there's only one food type in the WH, take it
@@ -136,6 +153,14 @@ class FeedingRules:
 
             eaten = FeedingRules.eat(species, food_type, 1, watering_hole_food[food_type])
             watering_hole_food[food_type] -= eaten
+
+            if watering_hole_food[PLANT] == 0 and watering_hole_food[BAMBOO] == 0:
+                FeedingRules._trigger_trait_feeding(
+                    tusked_species or (),
+                    TUSKED.effect_id,
+                    1,
+                    MEAT,
+                )
 
     @staticmethod
     def food_type_eating_priorities(
@@ -355,6 +380,7 @@ class FeedingRules:
                 simulated_watering_hole_food[PLANT],
                 state,
                 simulated_watering_hole_food,
+                simulated_species.values(),
             )
 
         # Compare the total additional food Rani's species would gain from this forage.
@@ -563,6 +589,7 @@ class FeedingRules:
         plant_food_remaining: int,
         state: GameState,
         watering_hole_food: dict[str, int],
+        tusked_species: Iterable[Species] | None = None,
     ) -> None:
         """Method to handle the trait triggers happening after foraging."""
         species_list = list(active_species)
@@ -584,7 +611,12 @@ class FeedingRules:
                 PLANT,
             )
 
-            FeedingRules._apply_root_eating(forager, watering_hole_food)
+            if tusked_species is None:
+                tusked_species = (
+                    species for player in state.players for species in player.species
+                )
+                
+            FeedingRules._apply_root_eating(forager, watering_hole_food, tusked_species)
 
     @staticmethod
     def _food_amount_to_eat(

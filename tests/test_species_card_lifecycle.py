@@ -1,15 +1,31 @@
 import random
 import unittest
 
+from src.nature_solo_bot.const import BAMBOO
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.player import Player
+from src.nature_solo_bot.game.model.solo_cards import (
+    CHI_CHI,
+    CHOMPS,
+    FENG,
+    TRIM,
+)
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.trait import Trait
 from src.nature_solo_bot.game.model.trait_card import TraitCard
+from src.nature_solo_bot.game.model.trait_cards import (
+    ARBOREAL,
+    FOLIVORE,
+    MONOPHAGOUS,
+    OPPORTUNISTIC,
+    ROOT_EATING,
+    SOCIAL,
+    STALKING,
+)
 from src.nature_solo_bot.game.rules.preparation import PreparationRules
 
 
@@ -45,13 +61,13 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
             for card in Card.init_trait_decks(promo=True, module=BAMBOO_GROVE)
             if card.trait.name == "Long Digestion"
         )
-        card.stored_food = 3
+        card.stored_food[BAMBOO] = 3
         species.add_trait_card(card, max_traits=3)
         player.species.append(species)
 
         self.assertTrue(player.return_extinct_species(species))
 
-        self.assertEqual(card.stored_food, 0)
+        self.assertEqual(card.stored_food[BAMBOO], 0)
         self.assertIs(player.hand[-1], card)
 
     def test_solo_card_goes_to_players_solo_discard_when_species_goes_extinct(self):
@@ -184,6 +200,118 @@ class SpeciesCardLifecycleTest(unittest.TestCase):
         self.assertEqual(species.trait_cards, cards)
         self.assertEqual(len(species.trait_cards), 3)
         self.assertFalse(species.is_hunter)
+
+    def test_chi_chi_draws_trait_from_its_deck_and_discards_other_draws(self):
+        state = GameState(modules=[BAMBOO_GROVE])
+        player = Player(name="Rani")
+        species = Species(solo_card=CHI_CHI, round_created=1)
+        bamboo_cards = Card.init_trait_decks(module=BAMBOO_GROVE)
+        monophagous_cards = [
+            card for card in bamboo_cards if card.trait is MONOPHAGOUS
+        ]
+        trait_card = monophagous_cards[0]
+        unrelated_card = next(
+            card for card in bamboo_cards if card.trait is not MONOPHAGOUS
+        )
+        card_in_wrong_deck = monophagous_cards[1]
+        state.module_decks[BAMBOO_GROVE].deck[:] = [trait_card, unrelated_card]
+        state.nature_deck[:] = [card_in_wrong_deck]
+
+        PreparationRules.solo_species_effect_when_played(
+            species,
+            player,
+            max_traits=state.max_traits,
+            trait_discard=state.nature_discard,
+            rng=random.Random(42),
+            state=state,
+        )
+
+        self.assertEqual(species.trait_cards, [trait_card])
+        self.assertEqual(state.module_decks[BAMBOO_GROVE].discard, [unrelated_card])
+        self.assertEqual(state.nature_deck, [card_in_wrong_deck])
+        self.assertEqual(species.size, 3)
+
+    def test_bamboo_grove_solo_cards_attach_their_declared_traits(self):
+        cases = (
+            (CHOMPS, {ROOT_EATING, SOCIAL}),
+            (FENG, {OPPORTUNISTIC, FOLIVORE}),
+            (TRIM, {STALKING, ARBOREAL}),
+        )
+
+        for solo_card, expected_traits in cases:
+            with self.subTest(solo_card=solo_card.name):
+                state = GameState(modules=[BAMBOO_GROVE])
+                player = Player(name="Rani")
+                species = Species(solo_card=solo_card, round_created=1)
+
+                bamboo_cards = Card.init_trait_decks(module=BAMBOO_GROVE)
+                nature_cards = Card.init_trait_decks()
+                state.module_decks[BAMBOO_GROVE].deck[:] = bamboo_cards
+                state.nature_deck[:] = nature_cards
+
+                PreparationRules.solo_species_effect_when_played(
+                    species,
+                    player,
+                    max_traits=state.max_traits,
+                    trait_discard=state.nature_discard,
+                    rng=random.Random(42),
+                    state=state,
+                )
+
+                actual_traits = set(species.traits)
+                self.assertEqual(actual_traits, expected_traits)
+
+    def test_add_trait_when_played_searches_matching_module_discard_after_deck(self):
+        state = GameState(modules=[BAMBOO_GROVE])
+        species = Species(
+            solo_card=SoloSpecies(add_trait=[MONOPHAGOUS]),
+            round_created=1,
+        )
+        bamboo_cards = Card.init_trait_decks(module=BAMBOO_GROVE)
+        trait_card = next(
+            card for card in bamboo_cards if card.trait is MONOPHAGOUS
+        )
+        unrelated_card = next(
+            card for card in bamboo_cards if card.trait is not MONOPHAGOUS
+        )
+        card_in_wrong_discard = next(
+            card
+            for card in bamboo_cards
+            if card.trait is MONOPHAGOUS and card is not trait_card
+        )
+        state.module_decks[BAMBOO_GROVE].deck[:] = [unrelated_card]
+        state.module_decks[BAMBOO_GROVE].discard[:] = [trait_card]
+        state.nature_discard[:] = [card_in_wrong_discard]
+
+        PreparationRules.add_trait_when_played(state, species)
+
+        self.assertEqual(species.trait_cards, [trait_card])
+        self.assertEqual(state.module_decks[BAMBOO_GROVE].discard, [unrelated_card])
+        self.assertEqual(state.nature_discard, [card_in_wrong_discard])
+
+    def test_add_trait_when_played_skips_trait_missing_from_expected_piles(self):
+        state = GameState(modules=[BAMBOO_GROVE])
+        species = Species(
+            solo_card=SoloSpecies(add_trait=[MONOPHAGOUS]),
+            round_created=1,
+        )
+        bamboo_cards = Card.init_trait_decks(module=BAMBOO_GROVE)
+        card_in_wrong_deck = next(
+            card for card in bamboo_cards if card.trait is MONOPHAGOUS
+        )
+        card_in_wrong_discard = next(
+            card
+            for card in bamboo_cards
+            if card.trait is MONOPHAGOUS and card is not card_in_wrong_deck
+        )
+        state.nature_deck[:] = [card_in_wrong_deck]
+        state.nature_discard[:] = [card_in_wrong_discard]
+
+        PreparationRules.add_trait_when_played(state, species)
+
+        self.assertEqual(species.trait_cards, [])
+        self.assertEqual(state.nature_deck, [card_in_wrong_deck])
+        self.assertEqual(state.nature_discard, [card_in_wrong_discard])
 
 
 if __name__ == "__main__":

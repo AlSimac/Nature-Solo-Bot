@@ -1,3 +1,13 @@
+from nature_solo_bot.game.model.trait_cards import (
+    ARBOREAL,
+    FOLIVORE,
+    MONOPHAGOUS,
+    OPPORTUNISTIC,
+    ROOT_EATING,
+    SOCIAL,
+    STALKING,
+)
+
 from .solo_species import SoloEffect, SoloSpecies
 from .symbol import Symbol, SymbolIncrease, SymbolName
 
@@ -181,32 +191,118 @@ NATURE_SOLO_CARDS = [
 # ----- Bamboo Grove Solo Species -----
 CHI_CHI = SoloSpecies(
     name="Chi Chi",
+    add_trait=[MONOPHAGOUS],
+    effect_id=SoloEffect.CHI_CHI,
     pink_symbols=[
         Symbol(SymbolName.VULTURE),
-        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.ARMADILLO),
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.POPULATION),
         Symbol(SymbolName.LEAF),
-        Symbol(SymbolName.GEAR),
-        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.SIZE, make_hunter=True),
     ],
     pink_symbols_last_round=[
-        Symbol(SymbolName.VULTURE),
-        Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.ARMADILLO),
+        Symbol(SymbolName.SEEDLING),
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.POPULATION),
     ],
     blue_symbols=[
+        Symbol(SymbolName.ARMADILLO),
         Symbol(SymbolName.VULTURE),
-        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
-        Symbol(SymbolName.SEEDLING),
-        Symbol(SymbolName.GEAR, make_hunter=True),
-        Symbol(SymbolName.LEAF, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.POPULATION),
     ],
     blue_symbols_last_round=[
+        Symbol(SymbolName.SEEDLING),
+        Symbol(SymbolName.ARMADILLO),
+        Symbol(SymbolName.VULTURE, increase=SymbolIncrease.POPULATION),
+    ],
+)
+CHOMPS = SoloSpecies(
+    name="Chomps",
+    add_trait=[ROOT_EATING, SOCIAL],
+    effect_id=SoloEffect.CHOMPS,
+    pink_symbols=[
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.SIZE),
         Symbol(SymbolName.VULTURE),
-        Symbol(SymbolName.CAT),
-        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
         Symbol(SymbolName.LEAF, increase=SymbolIncrease.POPULATION),
-        Symbol(SymbolName.SEEDLING, make_hunter=True),
+        Symbol(SymbolName.GEAR),
+    ],
+    pink_symbols_last_round=[
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.LEAF),
+        Symbol(SymbolName.GEAR, increase=SymbolIncrease.POPULATION),
+    ],
+    blue_symbols=[
+        Symbol(SymbolName.VULTURE, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.SEEDLING),
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.CAT, make_hunter=True),
+    ],
+    blue_symbols_last_round=[
+        Symbol(SymbolName.VULTURE, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.LEAF),
+        Symbol(SymbolName.GEAR, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.CAT, make_hunter=True),
+    ],
+)
+FENG = SoloSpecies(
+    name="Feng",
+    add_trait=[OPPORTUNISTIC, FOLIVORE],
+    effect_id=SoloEffect.FENG,
+    pink_symbols=[
+        Symbol(SymbolName.LEAF),
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.SEEDLING),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+    ],
+    pink_symbols_last_round=[
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.SEEDLING, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.ARMADILLO),
+    ],
+    blue_symbols=[
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.ARMADILLO),
+        Symbol(SymbolName.LEAF),
+    ],
+    blue_symbols_last_round=[
+        Symbol(SymbolName.LEAF, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.CAT, make_hunter=True),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.GEAR),
+    ],
+)
+TRIM = SoloSpecies(
+    name="Trim",
+    add_trait=[STALKING, ARBOREAL],
+    effect_id=SoloEffect.TRIM,
+    pink_symbols=[
+        Symbol(SymbolName.GEAR),
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.VULTURE),
+        Symbol(SymbolName.ARMADILLO, increase=SymbolIncrease.SIZE),
+    ],
+    pink_symbols_last_round=[
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.VULTURE, increase=SymbolIncrease.SIZE),
+    ],
+    blue_symbols=[
+        Symbol(SymbolName.CAT, make_hunter=True),
+        Symbol(SymbolName.GEAR, increase=SymbolIncrease.SIZE),
+        Symbol(SymbolName.VULTURE, increase=SymbolIncrease.POPULATION),
+        Symbol(SymbolName.SEEDLING),
+    ],
+    blue_symbols_last_round=[
+        Symbol(SymbolName.CAT, increase=SymbolIncrease.POPULATION, make_hunter=True),
+        Symbol(SymbolName.GEAR),
     ],
 )
 BAMBOO_GROVE_SOLO_CARDS = [
     CHI_CHI,
+    CHOMPS,
+    FENG,
+    TRIM,
 ]

@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
+from src.nature_solo_bot.const import BAMBOO, MEAT, PLANT
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
@@ -146,16 +147,20 @@ class ScoringPhaseTest(unittest.TestCase):
 
         ScoringRules.score_round(state, engine.rng)
 
-        self.assertEqual(long_digestion.stored_food, 2)
+        self.assertEqual(long_digestion.stored_food[BAMBOO], 2)
         self.assertEqual(species.bamboo_food, 0)
         self.assertEqual(state.players[0].score, 0)
 
         state.current_round = state.total_rounds
         species.bamboo_food = 3
+        species.plant_food = 2
+        species.meat_food = 1
         ScoringRules.score_round(state, engine.rng)
 
-        self.assertEqual(long_digestion.stored_food, 5)
-        self.assertEqual(state.players[0].score, 7)
+        self.assertEqual(long_digestion.stored_food[BAMBOO], 5)
+        self.assertEqual(long_digestion.stored_food[PLANT], 0)
+        self.assertEqual(long_digestion.stored_food[MEAT], 0)
+        self.assertEqual(state.players[0].score, 10)
 
     def test_long_digestion_food_is_lost_if_trait_is_discarded_at_game_end(self):
         engine, state = self._create_engine_with_players(
@@ -176,7 +181,7 @@ class ScoringPhaseTest(unittest.TestCase):
         with patch.object(engine.rng, "choice", return_value=long_digestion):
             engine.run_scoring_phase()
 
-        self.assertEqual(long_digestion.stored_food, 0)
+        self.assertEqual(long_digestion.stored_food[BAMBOO], 0)
         self.assertNotIn(long_digestion, species.trait_cards)
         self.assertEqual(state.players[0].score, 2)
 
