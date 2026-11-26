@@ -191,19 +191,22 @@ flowchart TD
     G -- No --> M
     M --> N{"Territorial forage succeeded?"}
     N -- No --> O["Initial forage fails: try next candidate; a failed bonus forage ends this feeding turn"]
-    N -- Yes --> P["Resolve Opportunistic if plants remain in watering hole"]
-    L --> P
-    P --> Q["Other active-player Folivore copies eat plants from supply"]
-    Q --> R["Resolve Root Eating for each copy while watering-hole food remains"]
-    R --> S{"Did Root Eating empty all watering-hole food?"}
-    S -- Yes --> T["Every Tusked copy in the game triggers: eat 1 meat each"]
-    S -- No --> U["Continue"]
-    T --> U
-    U --> V{"More Avid Forager copies to attempt?"}
-    V -- Yes --> X{"Is the forager Monophagous?"}
-    X -- Yes --> B
-    X -- No --> G
-    V -- No --> W["Finish feeding turn"]
+    L --> T{"Did the forage empty all watering-hole food?"}
+    T -- Yes --> U["Every Tusked copy in the game triggers: eat 1 meat each"]
+    T -- No --> Q
+    U --> Q
+    N -- Yes --> Q["Resolve Opportunistic if plants remain in watering hole"]
+    Q --> R["Other active-player Folivore copies eat plants from supply"]
+    R --> S["Resolve Root Eating for each copy while watering-hole food remains"]
+    S --> V{"Did Root Eating empty all watering-hole food?"}
+    V -- Yes --> W["Every Tusked copy in the game triggers: eat 1 meat each"]
+    V -- No --> X["Continue"]
+    W --> X
+    X --> Y{"More Avid Forager copies to attempt?"}
+    Y -- Yes --> Z{"Is the forager Monophagous?"}
+    Z -- Yes --> B
+    Z -- No --> G
+    Y -- No --> AA["Finish feeding turn"]
 ```
 
 ### Hunt and prey selection
@@ -239,7 +242,7 @@ flowchart TD
 
 In Bamboo Grove, a forage takes either plants or bamboo, never a mix. Monophagous selects bamboo when the watering-hole estimate includes bamboo (including potential Bamboo Grove card refills), and otherwise selects plants. If that forage cannot feed, the Territorial fallback checks bamboo first for Monophagous. Other foragers choose bamboo only when its projected gain is greater than the plant gain; ties favor plants. Avid Forager repeats the same food choice, with Monophagous rechecking its availability for each bonus forage.
 
-The forage amount is capped by hunger and food at the selected source. Social adds two food per copy; Arboreal adds one food per copy from either forage type; Clawed adds two only when foraging for plants. Refills add the discarded card's printed value to the food type associated with that card's deck. After any successful forage, Opportunistic triggers if plants remain in the watering hole, Folivore triggers on the active player's other species, and then Root Eating resolves. Root Eating can eat or discard food still in the watering hole; Tusked triggers when that removes the last food of either type. Territorial food can be used as a fallback forage source.
+The forage amount is capped by hunger and food at the selected source. Social adds two food per copy; Arboreal adds one food per copy from either forage type; Clawed adds two only when foraging for plants. Refills add the discarded card's printed value to the food type associated with that card's deck. Tusked triggers whenever a watering-hole food removal empties the entire supply, including ordinary foraging and Root Eating; a later refill and emptying triggers it again. After any successful forage, Opportunistic triggers if plants remain in the watering hole, Folivore triggers on the active player's other species, and then Root Eating resolves. Territorial food can be used as a fallback forage source.
 
 Stalking makes a species a hunter. It can bypass evasive traits when the prey is fully fed; otherwise Fast must still be matched, and Arboreal prey still require an Arboreal hunter. A hunter that eats prey with Horned loses population as shown in the shared hunt flow. Scavenging and Opportunistic resolve after a successful hunt as shown above.
 

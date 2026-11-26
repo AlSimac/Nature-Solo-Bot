@@ -1,9 +1,15 @@
 import unittest
 
+from src.nature_solo_bot.game.model.hunter_card import HunterCard
 from src.nature_solo_bot.game.model.solo_species import SoloSpecies
 from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER, CLAWED, PLATED
+from src.nature_solo_bot.game.model.trait_cards import (
+    AVID_FORAGER,
+    CLAWED,
+    MONOPHAGOUS,
+    PLATED,
+)
 
 
 class SpeciesTest(unittest.TestCase):
@@ -33,6 +39,22 @@ class SpeciesTest(unittest.TestCase):
             )
         )
         self.assertEqual(species.trait_cards, [existing_trait])
+
+    def test_monophagous_cannot_be_added_by_replacing_trait_on_hunter(self):
+        species = Species(solo_card=SoloSpecies(), round_created=1)
+        hunter_card = HunterCard()
+        existing_trait = TraitCard(CLAWED)
+        species.add_trait_card(hunter_card, max_traits=3)
+        species.add_trait_card(existing_trait, max_traits=3)
+
+        self.assertFalse(
+            species.replace_trait_card(
+                existing_trait,
+                TraitCard(MONOPHAGOUS),
+                max_traits=3,
+            )
+        )
+        self.assertEqual(species.trait_cards, [hunter_card, existing_trait])
 
     def test_hunger_status_tracks_food_and_population_changes(self):
         species = Species(solo_card=SoloSpecies(), round_created=1)

@@ -65,6 +65,10 @@ class FeedingRules:
                             state, active_player, species
                         )
 
+                    food_type = FeedingRules._fallback_food_type_if_empty(
+                        state, active_player, food_type
+                    )
+
                     if not FeedingRules._forage_once(state, active_player, species, food_type, rng):
                         break
 
@@ -247,6 +251,26 @@ class FeedingRules:
             return True
 
         return FeedingRules._forage_from_territorial(species)
+
+    @staticmethod
+    def _fallback_food_type_if_empty(
+        state: GameState,
+        player: Player,
+        food_type: str,
+    ) -> str:
+        """Switch to the other Bamboo Grove food type when the preferred type is exhausted."""
+        if BAMBOO_GROVE not in state.modules:
+            return food_type
+
+        other_food_type = BAMBOO if food_type == PLANT else PLANT
+        
+        if FeedingRules.get_available_food(state, player, food_type) > 0:
+            return food_type
+
+        if FeedingRules.get_available_food(state, player, other_food_type) > 0:
+            return other_food_type
+
+        return food_type
 
     @staticmethod
     def choose_species_to_feed(

@@ -1,6 +1,8 @@
 from collections.abc import Iterator
 from random import Random
 
+from nature_solo_bot.const import BAMBOO_GROVE
+
 from ..model.player import Player
 from ..model.species import Species
 from ..model.state import GameState
@@ -98,6 +100,9 @@ class AdaptationRules:
 
             if not candidate_assigned:
                 continue
+
+            if BAMBOO_GROVE in state.modules:
+                PreparationRules.discard_monophagous_if_hunter(candidate, state)
 
             if candidate_symbol.is_hunter and not candidate.is_hunter:
                 PreparationRules.add_hunter_card(

@@ -143,6 +143,9 @@ class Species:
             old_card not in self.trait_cards
             or len(self.trait_cards) > max_traits
             or (new_card.trait.effect_id == AVID_FORAGER.effect_id and self.size > 2)
+            or (  # BAMBOO_GROVE
+                new_card.trait.effect_id == MONOPHAGOUS.effect_id and self.is_hunter
+            )
         ):
             return False
 

@@ -30,6 +30,42 @@ from src.nature_solo_bot.game.rules.feeding import FeedingRules
 
 
 class BambooFeedingInteractionTest(unittest.TestCase):
+    def test_tusked_triggers_when_forage_empties_the_watering_hole(self):
+        player = Player(name="Forager")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked = Species(solo_card=SoloSpecies(), round_created=1)
+        tusked.population = 2
+        tusked.add_trait_card(TraitCard(TUSKED), max_traits=3)
+        player.species.extend([forager, tusked])
+
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_bamboo = 1
+
+        FeedingRules.forage(state, forager, BAMBOO)
+
+        self.assertEqual(state.total_watering_hole_food, 0)
+        self.assertEqual(tusked.meat_food, 1)
+
+    def test_avid_forager_switches_food_type_when_preferred_type_is_empty(self):
+        player = Player(name="Avid forager")
+        forager = Species(solo_card=SoloSpecies(), round_created=1)
+        forager.population = 10
+        forager.add_trait_card(TraitCard(AVID_FORAGER), max_traits=3)
+        player.species.append(forager)
+
+        state = GameState(modules=[BAMBOO_GROVE])
+        state.players = [player]
+        state.watering_hole_plant = 1
+        state.watering_hole_bamboo = 1
+
+        FeedingRules.take_feeding_turn(state, player, Random(1))
+
+        self.assertEqual(forager.plant_food, 1)
+        self.assertEqual(forager.bamboo_food, 1)
+        self.assertEqual(state.watering_hole_plant, 0)
+        self.assertEqual(state.watering_hole_bamboo, 0)
+
     def test_all_bamboo_trait_pairs_attach_and_count_independently(self):
         for first_trait, second_trait in combinations(BAMBOO_GROVE_TRAITS, 2):
             with self.subTest(first=first_trait.name, second=second_trait.name):

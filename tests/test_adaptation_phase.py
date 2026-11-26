@@ -1,9 +1,11 @@
 import unittest
+from random import Random
 from unittest.mock import patch
 
 from src.nature_solo_bot.engine.game_engine import GameEngine
 from src.nature_solo_bot.game.model.card import Card
 from src.nature_solo_bot.game.model.hunter_card import HunterCard
+from src.nature_solo_bot.game.model.modules import BAMBOO_GROVE
 from src.nature_solo_bot.game.model.player import Player
 from src.nature_solo_bot.game.model.solo_cards import (
     EVADER,
@@ -19,10 +21,53 @@ from src.nature_solo_bot.game.model.species import Species
 from src.nature_solo_bot.game.model.state import GameState
 from src.nature_solo_bot.game.model.symbol import Symbol, SymbolIncrease, SymbolName
 from src.nature_solo_bot.game.model.trait_card import TraitCard
-from src.nature_solo_bot.game.model.trait_cards import AVID_FORAGER, FAST
+from src.nature_solo_bot.game.model.trait_cards import (
+    AVID_FORAGER,
+    FAST,
+    MONOPHAGOUS,
+    STALKING,
+)
+from src.nature_solo_bot.game.rules.adaptation import AdaptationRules
 
 
 class AdaptationPhaseTest(unittest.TestCase):
+    def test_stalking_discards_monophagous_when_species_becomes_hunter(self):
+        state = GameState(modules=[BAMBOO_GROVE])
+        player = Player(name="Rani")
+        species = Species(
+            solo_card=SoloSpecies(
+                pink_symbols=[Symbol(SymbolName.CAT)]
+            ),
+            round_created=1,
+        )
+        monophagous = next(
+            card
+            for card in Card.init_trait_decks(module=BAMBOO_GROVE)
+            if card.trait.effect_id == MONOPHAGOUS.effect_id
+        )
+        stalking = next(
+            card
+            for card in Card.init_trait_decks(module=BAMBOO_GROVE)
+            if card.trait.effect_id == STALKING.effect_id
+            and card.solo_symbol == SymbolName.CAT
+        )
+        self.assertTrue(species.add_trait_card(monophagous, max_traits=state.max_traits))
+        player.species.append(species)
+        player.hand.append(stalking)
+        state.players.append(player)
+
+        AdaptationRules.assign_card_to_correct_candidate(
+            state,
+            player,
+            [],
+            Random(1),
+        )
+
+        self.assertTrue(species.is_hunter)
+        self.assertIn(stalking, species.trait_cards)
+        self.assertNotIn(monophagous, species.trait_cards)
+        self.assertIn(monophagous, state.module_decks[BAMBOO_GROVE].discard)
+
     def test_avid_forager_species_cannot_grow_past_size_two(self):
         engine = GameEngine(seed=42)
         state = GameState()

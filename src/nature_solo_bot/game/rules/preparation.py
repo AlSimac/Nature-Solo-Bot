@@ -1,6 +1,6 @@
 from random import Random
 
-from nature_solo_bot.const import PLANT
+from nature_solo_bot.const import BAMBOO_GROVE, PLANT
 from nature_solo_bot.game.model.trait import Trait
 from nature_solo_bot.game.model.trait_cards import AVID_FORAGER, MONOPHAGOUS, TERRITORIAL
 
@@ -159,13 +159,22 @@ class PreparationRules:
 
         # BAMBOO_GROVE: If a species with Monophagous becomes hunter,
         # Monophagous is removed
-        if species.is_hunter:
-            for card in species.trait_cards:
-                if card.trait.effect_id == MONOPHAGOUS.effect_id:
-                    species.remove_trait_card(card)
-                    player._return_trait_card(card, state.trait_discard_pile(card))
+        if BAMBOO_GROVE in state.modules:
+            PreparationRules.discard_monophagous_if_hunter(species, state)
 
         return attached
+
+    # BAMBOO_GROVE
+    @staticmethod
+    def discard_monophagous_if_hunter(species: Species, state: GameState) -> None:
+        """Discard Monophagous when a species can no longer forage."""
+        if not species.is_hunter:
+            return
+
+        for card in list(species.trait_cards):
+            if card.trait.effect_id == MONOPHAGOUS.effect_id:
+                species.remove_trait_card(card)
+                state.trait_discard_pile(card).insert(0, card)
 
     @staticmethod
     def add_trait_when_played(state: GameState, species: Species) -> None:
@@ -239,11 +248,15 @@ class PreparationRules:
                 if trait_card is not None:
                     discard_pile.remove(trait_card)
 
-            if trait_card is not None and not species.add_trait_card(
-                trait_card,
-                max_traits=state.max_traits,
-            ):
-                discard_pile.insert(0, trait_card)
+            if trait_card is not None:
+                if (
+                    species.add_trait_card(trait_card, max_traits=state.max_traits)
+                    and BAMBOO_GROVE in state.modules
+                ):
+                    PreparationRules.discard_monophagous_if_hunter(species, state)
+
+                else:
+                    discard_pile.insert(0, trait_card)
 
     @staticmethod
     def add_new_species(state: GameState, rng: Random) -> None:
