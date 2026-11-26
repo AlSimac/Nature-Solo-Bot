@@ -334,6 +334,71 @@ class TraitAssignmentParserTest(unittest.TestCase):
         self.assertEqual(combinations[("Fast",)].total_bamboo_food, 2)
         self.assertEqual(solo_species["Evader"].total_bamboo_food, 2)
 
+    def test_excludes_bamboo_discarded_at_scoring(self):
+        log_lines = (
+            "Players: Rani, Radwin",
+            "ROUND 1 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "ROUND 1 - FEEDING",
+            "  Rani: S1 Evader ate 3 food (1 plant, 0 meat, 2 bamboo); "
+            "population 3 to 2",
+            "Watering hole after feeding: 0 plant, 0 bamboo",
+            "ROUND 1 - SCORING",
+            "    S1 bamboo food: 2 discarded",
+            "    S1 scored food: 1 plant, 0 meat, 0 bamboo",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_discarded.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+
+            stats = TraitAssignmentParser().parse_trait_combinations(temporary_directory)
+
+        self.assertEqual(stats[("Fast",)].total_food, 1)
+        self.assertEqual(stats[("Fast",)].total_plant_food, 1)
+        self.assertEqual(stats[("Fast",)].total_bamboo_food, 0)
+
+    def test_counts_stored_bamboo_when_it_is_scored_at_game_end(self):
+        log_lines = (
+            "Players: Rani, Radwin",
+            "ROUND 1 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "ROUND 1 - FEEDING",
+            "  Rani: S1 Evader ate 2 food (0 plant, 0 meat, 2 bamboo); "
+            "population 3 to 2",
+            "Watering hole after feeding: 0 plant, 0 bamboo",
+            "ROUND 1 - SCORING",
+            "    S1 bamboo food: 2 stored",
+            "ROUND 2 - ADAPTATION",
+            "Species at the end of adaptation:",
+            "Rani: hand=[]",
+            "  S1 Evader (tree=PINK, size=1, population=3, traits=[Fast])",
+            "ROUND 2 - FEEDING",
+            "  Rani: S1 Evader ate 1 food (0 plant, 0 meat, 1 bamboo); "
+            "population 3 to 2",
+            "Watering hole after feeding: 0 plant, 0 bamboo",
+            "ROUND 2 - SCORING",
+            "    S1 bamboo food: 1 scored",
+            "    S1 stored bamboo food: 2 scored",
+            "    S1 scored food: 0 plant, 0 meat, 1 bamboo",
+            "Winner: Rani",
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_path = Path(temporary_directory) / "gamelog_2_stored.log"
+            log_path.write_text("\n".join(log_lines), encoding="utf-8")
+
+            stats = TraitAssignmentParser().parse_trait_combinations(temporary_directory)
+            by_trait = TraitAssignmentParser().parse_food_by_trait(temporary_directory)
+
+        self.assertEqual(stats[("Fast",)].total_bamboo_food, 3)
+        self.assertEqual(stats[("Fast",)].total_food, 3)
+        self.assertEqual(by_trait["Fast"][1].total_bamboo_food, 0)
+        self.assertEqual(by_trait["Fast"][2].total_bamboo_food, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

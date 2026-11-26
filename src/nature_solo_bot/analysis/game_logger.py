@@ -343,6 +343,15 @@ class GameLogger:
             for player in self.state.players
             for species in player.species
         }
+        before_stored_bamboo = {
+            species: sum(
+                card.stored_food[BAMBOO]
+                for card in species.trait_cards
+                if card.trait.effect_id == LONG_DIGESTION.effect_id
+            )
+            for player in self.state.players
+            for species in player.species
+        }
         self.write(f"\nROUND {self.state.current_round} - SCORING")
         self._original_scoring()
         for player in self.state.players:
@@ -368,13 +377,50 @@ class GameLogger:
                     if MONOPHAGOUS.effect_id in trait_ids:
                         bamboo_outcome = "scored"
                     elif LONG_DIGESTION.effect_id in trait_ids:
-                        bamboo_outcome = "stored"
+                        bamboo_outcome = (
+                            "scored"
+                            if self.state.current_round == self.state.total_rounds
+                            else "stored"
+                        )
                     else:
                         bamboo_outcome = "discarded"
                     self.write(
                         f"    {self.species_id(species)} bamboo food: "
                         f"{bamboo_food} {bamboo_outcome}"
                     )
+                if (
+                    self.state.current_round == self.state.total_rounds
+                    and before_stored_bamboo[species]
+                ):
+                    self.write(
+                        f"    {self.species_id(species)} stored bamboo food: "
+                        f"{before_stored_bamboo[species]} scored"
+                    )
+
+                trait_ids = {
+                    card.trait.effect_id for card in before_species[species][1]
+                }
+                scored_plant = before_food[species][PLANT]
+                scored_meat = before_food[species][MEAT]
+                scored_bamboo = before_food[species][BAMBOO]
+                if BAMBOO_GROVE in self.state.modules:
+                    if MONOPHAGOUS.effect_id in trait_ids:
+                        scored_plant = 0
+                        scored_meat = 0
+                    else:
+                        scored_bamboo = (
+                            before_food[species][BAMBOO]
+                            if (
+                                LONG_DIGESTION.effect_id in trait_ids
+                                and self.state.current_round == self.state.total_rounds
+                            )
+                            else 0
+                        )
+                self.write(
+                    f"    {self.species_id(species)} scored food: "
+                    f"{scored_plant} plant, {scored_meat} meat, "
+                    f"{scored_bamboo} bamboo"
+                )
                 self._write_scoring_changes(species, before_species[species])
 
     def _write_scoring_changes(

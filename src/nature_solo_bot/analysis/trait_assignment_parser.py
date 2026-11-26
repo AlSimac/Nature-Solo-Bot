@@ -24,6 +24,18 @@ _FEEDING_SUMMARY_PATTERN = re.compile(
     r"(?:, (?P<bamboo>\d+) bamboo)?\); population "
     r"\d+ to (?P<population>\d+|extinct)$"
 )
+_BAMBOO_SCORING_PATTERN = re.compile(
+    r"^\s+(?P<species>S\d+) bamboo food:\s+"
+    r"(?P<amount>\d+) (?P<outcome>scored|stored|discarded)$"
+)
+_STORED_BAMBOO_SCORING_PATTERN = re.compile(
+    r"^\s+(?P<species>S\d+) stored bamboo food:\s+"
+    r"(?P<amount>\d+) scored$"
+)
+_SCORED_FOOD_PATTERN = re.compile(
+    r"^\s+(?P<species>S\d+) scored food:\s+"
+    r"(?P<plant>\d+) plant, (?P<meat>\d+) meat, (?P<bamboo>\d+) bamboo$"
+)
 
 
 @dataclass(slots=True)
@@ -343,7 +355,10 @@ class TraitAssignmentParser:
             traits_by_species = TraitAssignmentParser._read_adaptation_traits(
                 round_sections["ADAPTATION"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
+            food_by_species = TraitAssignmentParser._read_food_totals(
+                round_sections["FEEDING"],
+                round_sections.get("SCORING"),
+            )
             for species_id, trait_names in traits_by_species.items():
                 for trait in trait_names:
                     stats = totals[trait][round_number]
@@ -394,9 +409,12 @@ class TraitAssignmentParser:
         return traits_by_species
 
     @staticmethod
-    def _read_food_totals(lines: list[str]) -> defaultdict[str, _FoodTotals]:
+    def _read_food_totals(
+        feeding_lines: list[str],
+        scoring_lines: list[str] | None = None,
+    ) -> defaultdict[str, _FoodTotals]:
         food_by_species: defaultdict[str, _FoodTotals] = defaultdict(_FoodTotals)
-        for line in lines:
+        for line in feeding_lines:
             match = _FEEDING_SUMMARY_PATTERN.match(line)
             if match is not None:
                 food_totals = food_by_species[match.group("species")]
@@ -409,6 +427,40 @@ class TraitAssignmentParser:
                     match.group("food_type"),
                     int(match.group("amount")),
                 )
+
+        exact_scores: dict[str, _FoodTotals] = {}
+        stored_bamboo: dict[str, int] = {}
+        for line in scoring_lines or []:
+            scored_match = _SCORED_FOOD_PATTERN.match(line)
+            if scored_match is not None:
+                exact_scores[scored_match.group("species")] = _FoodTotals(
+                    plant=int(scored_match.group("plant")),
+                    meat=int(scored_match.group("meat")),
+                    bamboo=int(scored_match.group("bamboo")),
+                )
+                continue
+
+            stored_match = _STORED_BAMBOO_SCORING_PATTERN.match(line)
+            if stored_match is not None:
+                species_id = stored_match.group("species")
+                stored_bamboo[species_id] = (
+                    stored_bamboo.get(species_id, 0) + int(stored_match.group("amount"))
+                )
+                continue
+
+            bamboo_match = _BAMBOO_SCORING_PATTERN.match(line)
+            if bamboo_match is None:
+                continue
+            species_id = bamboo_match.group("species")
+            if species_id in exact_scores:
+                continue
+            if bamboo_match.group("outcome") in ("discarded", "stored"):
+                food_by_species[species_id].bamboo = 0
+
+        for species_id, exact_score in exact_scores.items():
+            food_by_species[species_id] = exact_score
+        for species_id, amount in stored_bamboo.items():
+            food_by_species[species_id].bamboo += amount
         return food_by_species
 
     @staticmethod
@@ -472,7 +524,10 @@ class TraitAssignmentParser:
             surviving_species = TraitAssignmentParser._read_species_states(
                 round_sections["FEEDING"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
+            food_by_species = TraitAssignmentParser._read_food_totals(
+                round_sections["FEEDING"],
+                round_sections.get("SCORING"),
+            )
 
             for species_id, (combination, starting_population) in starting_species.items():
                 surviving_state = surviving_species.get(species_id)
@@ -549,7 +604,10 @@ class TraitAssignmentParser:
             surviving_species = TraitAssignmentParser._read_solo_species_states(
                 round_sections["FEEDING"]
             )
-            food_by_species = TraitAssignmentParser._read_food_totals(round_sections["FEEDING"])
+            food_by_species = TraitAssignmentParser._read_food_totals(
+                round_sections["FEEDING"],
+                round_sections.get("SCORING"),
+            )
 
             for species_id, (solo_species, starting_population) in starting_species.items():
                 surviving_state = surviving_species.get(species_id)
